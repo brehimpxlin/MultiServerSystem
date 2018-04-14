@@ -4,5 +4,6 @@
 # Log file
 *.log
 
+*.iml
 */out
 .idea/
