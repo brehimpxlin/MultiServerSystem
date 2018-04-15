@@ -44,7 +44,7 @@
 
 Register/GUI/Integration - ZICAN YAO
 
-Login - PEIXIN LIN
+Login / load balance / connection setup - PEIXIN LIN
 
 Activity - ~~WEIREN CHEN~~ MINGCHI ZHANG
 
