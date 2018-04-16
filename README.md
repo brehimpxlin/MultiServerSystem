@@ -42,9 +42,9 @@
 
 ## Assignment of tasks to individuals in the group 
 
-Register/GUI/Integration - ZICAN YAO
+Register/GUI/ - ZICAN YAO
 
-Login / load balance / connection setup - PEIXIN LIN
+Login / redirect / - PEIXIN LIN
 
 Activity - ~~WEIREN CHEN~~ MINGCHI ZHANG
 
