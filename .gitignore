@@ -5,5 +5,5 @@
 *.log
 
 *.iml
-*/out
+out/
 .idea/
