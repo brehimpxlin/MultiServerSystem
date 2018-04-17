@@ -15,7 +15,12 @@ public class ClientSkeleton extends Thread {
 	private static final Logger log = LogManager.getLogger();
 	private static ClientSkeleton clientSolution;
 	private TextFrame textFrame;
-	
+    private DataInputStream in;
+    private DataOutputStream out;
+    private BufferedReader inreader;
+    private PrintWriter outwriter;
+    private boolean open = false;
+    private Socket socket;
 
 	
 	public static ClientSkeleton getInstance(){
@@ -26,13 +31,22 @@ public class ClientSkeleton extends Thread {
 	}
 	
 	public ClientSkeleton(){
-		
-		
+
+
 		textFrame = new TextFrame();
 		start();
 	}
-	
-	
+
+    public boolean writeMsg(String msg)throws IOException {
+        if(open){
+
+            outwriter.println(msg);
+            outwriter.flush();
+            return true;
+        }
+        return false;
+    }
+
 	
 	
 	
@@ -42,32 +56,47 @@ public class ClientSkeleton extends Thread {
 		
 	}
 
-	public void connect(){
+	public boolean connect(){
 	    String localHostname = Settings.getLocalHostname();
 	    int localPort = Settings.getLocalPort();
 	    String serverHostname = "localhost";
 	    int serverPort = 3780;
 	    String hostName = "localhost";
 	    Socket socket = null;
+
 	    try{
-			socket = new Socket("localhost", 3780);
+			socket = new Socket(serverHostname, serverPort);
+            in = new DataInputStream(socket.getInputStream());
+            out = new DataOutputStream(socket.getOutputStream());
+            inreader = new BufferedReader( new InputStreamReader(in));
+            outwriter = new PrintWriter(out, true);
+            this.socket = socket;
+            open = true;
+			if(socket.isConnected()){
+                System.out.println("Connection with "+serverHostname+":"+serverPort+" successfully established.");
+            }
+            else{
+                System.out.println("Fail to connect to "+serverHostname+":"+serverPort+".");
+            }
 		}
 	    catch(Exception e){
-
+            System.out.println("Fail to connect to "+serverHostname+":"+serverPort+".");
 		}
-        System.out.println("Connection established");
-	    String username = Settings.getUsername();
-	    String secret = Settings.getSecret();
+        return socket.isConnected();
+
+
+
+    }
+
+    public void login(Socket socket){
+        String username = Settings.getUsername();
+        String secret = Settings.getSecret();
         JSONObject loginInfo = new JSONObject();
         loginInfo.put("username", username);
         loginInfo.put("secret", secret);
-//        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), "UTF-8"));
-        String loginText = loginInfo.toJSONString();
+        String loginText = loginInfo.toJSONString()+"\n";
         try{
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"));
-            out.write(loginText);
-            out.newLine();
-            out.flush();
+            writeMsg(loginText);
             System.out.println("Login info sent.");
         }
         catch (IOException e){
@@ -77,13 +106,17 @@ public class ClientSkeleton extends Thread {
 
 
 
-
 	public void disconnect(){
 		
 	}
 	
 	
 	public void run(){
+        connect();
+        String command = "login";
+        if(command.equals("login")){
+            login(socket);
+        }
 
 	}
 
