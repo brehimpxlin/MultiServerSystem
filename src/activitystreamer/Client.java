@@ -76,6 +76,8 @@ public class Client {
 			
 		ClientSkeleton c = ClientSkeleton.getInstance();
 
+
+
 			
 		
 	}

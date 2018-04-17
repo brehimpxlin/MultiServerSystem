@@ -47,6 +47,10 @@ public class ClientSkeleton extends Thread {
         return false;
     }
 
+    public void readMsg(String msg){
+        System.out.println(msg);
+    }
+
 	
 	
 	
@@ -57,11 +61,8 @@ public class ClientSkeleton extends Thread {
 	}
 
 	public boolean connect(){
-	    String localHostname = Settings.getLocalHostname();
-	    int localPort = Settings.getLocalPort();
-	    String serverHostname = "localhost";
-	    int serverPort = 3780;
-	    String hostName = "localhost";
+	    String serverHostname = Settings.getRemoteHostname();
+	    int serverPort = Settings.getRemotePort();
 	    Socket socket = null;
 
 	    try{
@@ -73,14 +74,16 @@ public class ClientSkeleton extends Thread {
             this.socket = socket;
             open = true;
 			if(socket.isConnected()){
-                System.out.println("Connection with "+serverHostname+":"+serverPort+" successfully established.");
+                log.info("Connection with "+serverHostname+":"+serverPort+" successfully established.");
+
             }
             else{
-                System.out.println("Fail to connect to "+serverHostname+":"+serverPort+".");
+                log.error("Fail to connect to "+serverHostname+":"+serverPort+".");
+
             }
 		}
 	    catch(Exception e){
-            System.out.println("Fail to connect to "+serverHostname+":"+serverPort+".");
+            log.error("Fail to connect to "+serverHostname+":"+serverPort+".");
 		}
         return socket.isConnected();
 
@@ -97,7 +100,7 @@ public class ClientSkeleton extends Thread {
         String loginText = loginInfo.toJSONString()+"\n";
         try{
             writeMsg(loginText);
-            System.out.println("Login info sent.");
+            log.info("Logging in.");
         }
         catch (IOException e){
             e.printStackTrace();
@@ -109,13 +112,26 @@ public class ClientSkeleton extends Thread {
 	public void disconnect(){
 		
 	}
-	
-	
+	public boolean isConnected(){
+	    return this.socket.isConnected();
+    }
+
+
 	public void run(){
-        connect();
-        String command = "LOGIN";
-        if(command.equals("LOGIN")){
+        if(connect()){
             login(Settings.getUsername(), Settings.getSecret());
+        }
+
+
+        try {
+            String data;
+            while(socket.isConnected() && (data = inreader.readLine())!=null){
+                readMsg(data);
+            }
+
+        } catch (IOException e) {
+            log.error("connection "+Settings.socketAddress(socket)+" closed with exception: "+e);
+
         }
 
 	}
