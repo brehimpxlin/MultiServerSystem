@@ -1,11 +1,6 @@
 package activitystreamer.client;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
 
 import org.apache.logging.log4j.LogManager;
@@ -46,8 +41,43 @@ public class ClientSkeleton extends Thread {
 	public void sendActivityObject(JSONObject activityObj){
 		
 	}
-	
-	
+
+	public void connect(){
+	    String localHostname = Settings.getLocalHostname();
+	    int localPort = Settings.getLocalPort();
+	    String serverHostname = "localhost";
+	    int serverPort = 3780;
+	    String hostName = "localhost";
+	    Socket socket = null;
+	    try{
+			socket = new Socket("localhost", 3780);
+		}
+	    catch(Exception e){
+
+		}
+        System.out.println("Connection established");
+	    String username = Settings.getUsername();
+	    String secret = Settings.getSecret();
+        JSONObject loginInfo = new JSONObject();
+        loginInfo.put("username", username);
+        loginInfo.put("secret", secret);
+//        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), "UTF-8"));
+        String loginText = loginInfo.toJSONString();
+        try{
+            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"));
+            out.write(loginText);
+            out.newLine();
+            out.flush();
+            System.out.println("Login info sent.");
+        }
+        catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+
+
+
+
 	public void disconnect(){
 		
 	}

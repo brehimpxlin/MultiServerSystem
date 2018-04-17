@@ -108,6 +108,8 @@ public class Server {
 			public void run() {  
 				c.setTerm(true);
 				c.interrupt();
+
+
 		    }
 		 });
 	}
