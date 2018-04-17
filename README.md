@@ -1,11 +1,9 @@
 # Project 1 Plan
-#hello world
-##The aim of the project
+
+## The aim of the project
 
 - Developing a distributed application.
 - To have a understanding of the principles and paradigms unerlying distruted software sytems.
-
-
 
 ## A high-level task breakdown to achieve the aim
 
@@ -35,10 +33,6 @@
 - Server_Announce
 
   - `SERVER_ANNOUNCE`
-
-  ​
-
-
 
 ## Assignment of tasks to individuals in the group 
 
