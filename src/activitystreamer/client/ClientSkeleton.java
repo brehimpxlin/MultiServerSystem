@@ -88,10 +88,10 @@ public class ClientSkeleton extends Thread {
 
     }
 
-    public void login(Socket socket){
-        String username = Settings.getUsername();
-        String secret = Settings.getSecret();
+    public void login(String username, String secret){
+
         JSONObject loginInfo = new JSONObject();
+        loginInfo.put("command", "LOGIN");
         loginInfo.put("username", username);
         loginInfo.put("secret", secret);
         String loginText = loginInfo.toJSONString()+"\n";
@@ -113,9 +113,9 @@ public class ClientSkeleton extends Thread {
 	
 	public void run(){
         connect();
-        String command = "login";
-        if(command.equals("login")){
-            login(socket);
+        String command = "LOGIN";
+        if(command.equals("LOGIN")){
+            login(Settings.getUsername(), Settings.getSecret());
         }
 
 	}
