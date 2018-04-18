@@ -58,6 +58,9 @@ public class Control extends Thread {
 	 */
 	public synchronized boolean process(Connection con,String msg){
 
+		System.out.println(msg);
+
+
 
         JSONParser parser = new JSONParser();
 	    try{
@@ -130,6 +133,8 @@ public class Control extends Thread {
 		return c;
 		
 	}
+
+	
 	
 	@Override
 	public void run(){

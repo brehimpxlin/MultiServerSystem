@@ -33,7 +33,6 @@ public class ClientSkeleton extends Thread {
 	
 	public ClientSkeleton(){
 
-
 		textFrame = new TextFrame();
 		start();
 	}
@@ -50,22 +49,19 @@ public class ClientSkeleton extends Thread {
 
 
 
-	
-	
-	
-	
-	@SuppressWarnings("unchecked")
+
 	public void sendActivityObject(JSONObject activityObj){
 		
 	}
 
 	public boolean connect(){
-	    String serverHostname = Settings.getRemoteHostname();
-	    int serverPort = Settings.getRemotePort();
-	    Socket socket = null;
+
+
+
+
 
 	    try{
-			socket = new Socket(serverHostname, serverPort);
+			Socket socket = new Socket(Settings.getRemoteHostname(), Settings.getRemotePort());
             in = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
             inreader = new BufferedReader( new InputStreamReader(in));
@@ -73,16 +69,16 @@ public class ClientSkeleton extends Thread {
             this.socket = socket;
             open = true;
 			if(socket.isConnected()){
-                log.info("Connection with "+serverHostname+":"+serverPort+" successfully established.");
+                log.info("Connection with "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+" successfully established.");
 
             }
             else{
-                log.error("Fail to connect to "+serverHostname+":"+serverPort+".");
+                log.error("Fail to connect to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+".");
 
             }
 		}
 	    catch(Exception e){
-            log.error("Fail to connect to "+serverHostname+":"+serverPort+".");
+            log.error("Fail to connect to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+".");
 		}
         return socket.isConnected();
 
@@ -117,12 +113,16 @@ public class ClientSkeleton extends Thread {
 
 
 	public void run(){
+
+
+
         if(connect()){
             login(Settings.getUsername(), Settings.getSecret());
         }
 
         MessageListener ml = new MessageListener(inreader);
         ml.start();
+
 
 
 	}
