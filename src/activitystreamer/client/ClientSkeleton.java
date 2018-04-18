@@ -10,6 +10,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import activitystreamer.util.Settings;
+import activitystreamer.client.MessageListener;
 
 public class ClientSkeleton extends Thread {
 	private static final Logger log = LogManager.getLogger();
@@ -47,9 +48,7 @@ public class ClientSkeleton extends Thread {
         return false;
     }
 
-    public void readMsg(String msg){
-        System.out.println(msg);
-    }
+
 
 	
 	
@@ -122,17 +121,9 @@ public class ClientSkeleton extends Thread {
             login(Settings.getUsername(), Settings.getSecret());
         }
 
+        MessageListener ml = new MessageListener(inreader);
+        ml.start();
 
-        try {
-            String data;
-            while(socket.isConnected() && (data = inreader.readLine())!=null){
-                readMsg(data);
-            }
-
-        } catch (IOException e) {
-            log.error("connection "+Settings.socketAddress(socket)+" closed with exception: "+e);
-
-        }
 
 	}
 
