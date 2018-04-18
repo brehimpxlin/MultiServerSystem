@@ -75,6 +75,9 @@ public class Client {
 
 			
 		ClientSkeleton c = ClientSkeleton.getInstance();
+
+
+		/*
 		//Use a scanner to read input from the console
 		Scanner scanner = new Scanner(System.in);
 		String inputStr = null;
@@ -90,6 +93,7 @@ public class Client {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        */
 
 	}
 

@@ -47,21 +47,24 @@ public class ClientSkeleton extends Thread {
     }
 
 
-	@SuppressWarnings("unchecked")
+
+    public void readMsg(String msg){
+        System.out.println(msg);
+    }
+
+
 	public void sendActivityObject(JSONObject activityObj){
 		
 	}
 
 	public boolean connect(){
-	    String localHostname = Settings.getLocalHostname();
-	    int localPort = Settings.getLocalPort();
-	    String serverHostname = "localhost";
-	    int serverPort = 3781;
-	    String hostName = "localhost";
-	    Socket socket = null;
+
+
+
+
 
 	    try{
-			socket = new Socket(serverHostname, serverPort);
+			Socket socket = new Socket(Settings.getRemoteHostname(), Settings.getRemotePort());
             in = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
             inreader = new BufferedReader( new InputStreamReader(in));
@@ -69,14 +72,16 @@ public class ClientSkeleton extends Thread {
             this.socket = socket;
             open = true;
 			if(socket.isConnected()){
-                System.out.println("Connection with "+serverHostname+":"+serverPort+" successfully established.");
+                log.info("Connection with "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+" successfully established.");
+
             }
             else{
-                System.out.println("Fail to connect to "+serverHostname+":"+serverPort+".");
+                log.error("Fail to connect to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+".");
+
             }
 		}
 	    catch(Exception e){
-            System.out.println("Fail to connect to "+serverHostname+":"+serverPort+".");
+            log.error("Fail to connect to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+".");
 		}
         return socket.isConnected();
 
@@ -93,7 +98,7 @@ public class ClientSkeleton extends Thread {
         String loginText = loginInfo.toJSONString()+"\n";
         try{
             writeMsg(loginText);
-            System.out.println("Login info sent.");
+            log.info("Logging in.");
         }
         catch (IOException e){
             e.printStackTrace();
@@ -105,14 +110,32 @@ public class ClientSkeleton extends Thread {
 	public void disconnect(){
 		
 	}
-	
-	
+	public boolean isConnected(){
+	    return this.socket.isConnected();
+    }
+
+
 	public void run(){
+
         connect();
         String command = "LOGIN";
-//        if(command.equals("LOGIN")){
-//            login(Settings.getUsername(), Settings.getSecret());
-//        }
+
+        if(connect()){
+            //login(Settings.getUsername(), Settings.getSecret());
+        }
+
+
+
+        try {
+            String data;
+            while(socket.isConnected() && (data = inreader.readLine())!=null){
+                readMsg(data);
+            }
+
+        } catch (IOException e) {
+            log.error("connection "+Settings.socketAddress(socket)+" closed with exception: "+e);
+
+        }
 
 	}
 

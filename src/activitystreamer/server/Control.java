@@ -3,15 +3,19 @@ package activitystreamer.server;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
-
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import activitystreamer.util.Settings;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 
 public class Control extends Thread {
 	private static final Logger log = LogManager.getLogger();
 	private static ArrayList<Connection> connections;
+	private static Map registration = new HashMap();
 	private static boolean term=false;
 	private static Listener listener;
 	
@@ -53,10 +57,54 @@ public class Control extends Thread {
 	 * Return true if the connection should close.
 	 */
 	public synchronized boolean process(Connection con,String msg){
+
 		System.out.println(msg);
+
+
+
+        JSONParser parser = new JSONParser();
+	    try{
+            JSONObject clientMsg = (JSONObject) parser.parse(msg);
+            String command = (String) clientMsg.get("command");
+            switch (command){
+                case "LOGIN":
+                    String username = (String)clientMsg.get("username");
+                    String secret = (String) clientMsg.get("secret");
+                    if(login(username, secret)){
+                        con.writeMsg("Logged in as "+username+"\n");
+                    }
+                    else {
+                        con.writeMsg("Failed to log in."+"\n");
+                    }
+
+            }
+        }
+        catch (Exception e){
+            e.printStackTrace();
+        }
+
 		return true;
 	}
-	
+
+	public synchronized boolean login(String username, String secret){
+	    registration.put(username, secret);
+
+	    if(registration.containsKey(username)){
+	        if(registration.get(username)!=null&&registration.get(username).equals(secret)
+                    ||username.equals("anonymous")
+                    ){
+	            log.info("A user has logged in: "+username);
+            }
+        }
+        else{
+
+	        return false;
+        }
+	    return true;
+    }
+
+
+
 	/*
 	 * The connection has been closed by the other party.
 	 */
@@ -72,9 +120,9 @@ public class Control extends Thread {
 		Connection c = new Connection(s);
 		connections.add(c);
 		return c;
-		
+
 	}
-	
+
 	/*
 	 * A new outgoing connection has been established, and a reference is returned to it
 	 */
