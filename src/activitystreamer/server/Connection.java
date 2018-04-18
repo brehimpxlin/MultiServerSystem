@@ -24,6 +24,7 @@ public class Connection extends Thread {
 	private boolean open = false;
 	private Socket socket;
 	private boolean term=false;
+
 	
 	Connection(Socket socket) throws IOException{
 		in = new DataInputStream(socket.getInputStream());
@@ -42,11 +43,26 @@ public class Connection extends Thread {
 		if(open){
 			outwriter.println(msg);
 			outwriter.flush();
-			return true;	
+			return true;
 		}
 		return false;
 	}
-	
+
+	/*
+     * Sending authenticate message to another server
+	 */
+	public void sendAu() {
+
+	}
+
+	/*
+     * Authenticate the incoming connection
+	 */
+	public void Authenticate() {
+
+	}
+
+
 	public void closeCon(){
 		if(open){
 			log.info("closing connection "+Settings.socketAddress(socket));
@@ -65,7 +81,11 @@ public class Connection extends Thread {
 	public void run(){
 		try {
 			String data;
-			while(!term && (data = inreader.readLine())!=null){
+
+			 /*
+              * !!!!! logic for while loop has been changed here, may be wrong
+              */
+			while((data = inreader.readLine())!=null || !term){
 				term=Control.getInstance().process(this,data);
 			}
 			log.debug("connection closed to "+Settings.socketAddress(socket));

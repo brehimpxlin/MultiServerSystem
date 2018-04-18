@@ -56,10 +56,6 @@ public class ClientSkeleton extends Thread {
 
 	public boolean connect(){
 
-
-
-
-
 	    try{
 			Socket socket = new Socket(Settings.getRemoteHostname(), Settings.getRemotePort());
             in = new DataInputStream(socket.getInputStream());
@@ -92,12 +88,25 @@ public class ClientSkeleton extends Thread {
         loginInfo.put("command", "LOGIN");
         loginInfo.put("username", username);
         loginInfo.put("secret", secret);
-        String loginText = loginInfo.toJSONString()+"\n";
+        String loginText = loginInfo.toJSONString();
         try{
             writeMsg(loginText);
             log.info("Logging in.");
+        }catch (IOException e){
+            e.printStackTrace();
         }
-        catch (IOException e){
+    }
+
+    public void register(String username, String secret){
+        JSONObject registerInfo = new JSONObject();
+        registerInfo.put("command", "REGISTER");
+        registerInfo.put("username", username);
+        registerInfo.put("secret", secret);
+        String registerJSON = registerInfo.toJSONString();
+        try{
+            writeMsg(registerJSON);
+            log.info("register for: " + username);
+        }catch (IOException e){
             e.printStackTrace();
         }
     }
@@ -118,6 +127,11 @@ public class ClientSkeleton extends Thread {
 
         if(connect()){
             login(Settings.getUsername(), Settings.getSecret());
+
+            /*
+             * test for register
+             */
+            register("Arron", "fmnmpp3ai91qb3gc2bvs14g3ue");
         }
 
         MessageListener ml = new MessageListener(inreader);

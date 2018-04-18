@@ -31,13 +31,14 @@ public class Control extends Thread {
 	public Control() {
 		// initialize the connections array
 		connections = new ArrayList<Connection>();
+
 		// start a listener
 		try {
 			listener = new Listener();
 		} catch (IOException e1) {
 			log.fatal("failed to startup a listening thread: "+e1);
 			System.exit(-1);
-		}	
+		}
 	}
 	
 	public void initiateConnection(){
@@ -60,23 +61,26 @@ public class Control extends Thread {
 
 		System.out.println(msg);
 
-
-
         JSONParser parser = new JSONParser();
+
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
             String command = (String) clientMsg.get("command");
+			String username = (String)clientMsg.get("username");
+			String secret = (String) clientMsg.get("secret");
             switch (command){
                 case "LOGIN":
-                    String username = (String)clientMsg.get("username");
-                    String secret = (String) clientMsg.get("secret");
+
                     if(login(username, secret)){
                         con.writeMsg("Logged in as "+username+"\n");
                     }
                     else {
                         con.writeMsg("Failed to log in."+"\n");
                     }
-
+                    break;
+				case "REGISTER":
+					doRegister(con,username,secret);
+					break;
             }
         }
         catch (Exception e){
@@ -103,6 +107,42 @@ public class Control extends Thread {
 	    return true;
     }
 
+
+	/*
+     * REGISTER
+     * - first check the local storage if the incoming username exits.
+     * - return `REGISTER_FAIL` if it does, Else check the other servers.
+     * - return `REGISTER_FAIL` and disconnect or return REGISTER_SUCCESS and store it.
+     *
+     * Only support one server now, without checking the other server;
+     */
+	public boolean doRegister(Connection con, String userName, String secret) {
+
+		if (registration.containsKey(userName)) {
+			con.writeMsg(registerSuccess(userName,false));
+			return false;
+		} else {
+			con.writeMsg(registerSuccess(userName,true));
+			registration.put(userName, secret);
+			return true;
+		}
+	}
+
+	/*
+	 * Return REGISTER_SUCCESS or REGISTER_FAIL
+	 */
+	public String registerSuccess(String userName, boolean result) {
+		JSONObject resultJSON = new JSONObject();
+		if (result) {
+			resultJSON.put("command", "REGISTER_SUCCESS");
+			resultJSON.put("info", "register success for " + userName);
+		} else {
+			resultJSON.put("command","REGISTER_FAIL");
+			resultJSON.put("info", userName + " is already registered with the system");
+		}
+
+		return resultJSON.toJSONString();
+	}
 
 
 	/*
