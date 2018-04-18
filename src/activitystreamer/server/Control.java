@@ -1,6 +1,7 @@
 package activitystreamer.server;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,6 +19,8 @@ public class Control extends Thread {
 	private static Map registration = new HashMap();
 	private static boolean term=false;
 	private static Listener listener;
+	private static ServerConnecter serverConnecter;
+
 	
 	protected static Control control = null;
 	
@@ -32,8 +35,16 @@ public class Control extends Thread {
 		// initialize the connections array
 		connections = new ArrayList<Connection>();
 
+		// connect to another server when initiate the server
 		// start a listener
 		try {
+			initiateConnection();
+			if (!connections.isEmpty()) {
+				/*
+				 * sending authentication here
+				 * connections.get(0).writeMsg();
+				 */
+			}
 			listener = new Listener();
 		} catch (IOException e1) {
 			log.fatal("failed to startup a listening thread: "+e1);
@@ -95,8 +106,7 @@ public class Control extends Thread {
 
 	    if(registration.containsKey(username)){
 	        if(registration.get(username)!=null&&registration.get(username).equals(secret)
-                    ||username.equals("anonymous")
-                    ){
+                    ||username.equals("anonymous")){
 	            log.info("A user has logged in: "+username);
             }
         }
