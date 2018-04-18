@@ -32,7 +32,6 @@ public class ClientSkeleton extends Thread {
 	
 	public ClientSkeleton(){
 
-
 		textFrame = new TextFrame();
 		start();
 	}
@@ -47,10 +46,7 @@ public class ClientSkeleton extends Thread {
         return false;
     }
 
-	
-	
-	
-	
+
 	@SuppressWarnings("unchecked")
 	public void sendActivityObject(JSONObject activityObj){
 		
@@ -60,7 +56,7 @@ public class ClientSkeleton extends Thread {
 	    String localHostname = Settings.getLocalHostname();
 	    int localPort = Settings.getLocalPort();
 	    String serverHostname = "localhost";
-	    int serverPort = 3780;
+	    int serverPort = 3781;
 	    String hostName = "localhost";
 	    Socket socket = null;
 
@@ -114,9 +110,9 @@ public class ClientSkeleton extends Thread {
 	public void run(){
         connect();
         String command = "LOGIN";
-        if(command.equals("LOGIN")){
-            login(Settings.getUsername(), Settings.getSecret());
-        }
+//        if(command.equals("LOGIN")){
+//            login(Settings.getUsername(), Settings.getSecret());
+//        }
 
 	}
 

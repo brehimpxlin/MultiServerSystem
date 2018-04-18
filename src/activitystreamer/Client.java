@@ -12,6 +12,9 @@ import org.apache.logging.log4j.Logger;
 import activitystreamer.client.ClientSkeleton;
 import activitystreamer.util.Settings;
 
+import java.io.IOException;
+import java.util.Scanner;
+
 public class Client {
 	
 	private static final Logger log = LogManager.getLogger();
@@ -69,15 +72,25 @@ public class Client {
 		
 		
 		log.info("starting client");
-		
-		
-		
-		
-			
-		ClientSkeleton c = ClientSkeleton.getInstance();
 
 			
-		
+		ClientSkeleton c = ClientSkeleton.getInstance();
+		//Use a scanner to read input from the console
+		Scanner scanner = new Scanner(System.in);
+		String inputStr = null;
+
+		//While the user input differs from "exit"
+		try {
+            while (!(inputStr = scanner.nextLine()).equals("exit")) {
+
+                // Send the input string to the server by writing to the socket output stream
+                c.writeMsg(inputStr + "\n");
+                System.out.println("message: "+ inputStr + " send");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
 	}
 
 	
