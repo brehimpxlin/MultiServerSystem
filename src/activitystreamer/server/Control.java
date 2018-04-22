@@ -17,6 +17,7 @@ public class Control extends Thread {
 	private static final Logger log = LogManager.getLogger();
 	private static ArrayList<Connection> connections;
 	private static Map registration = new HashMap();
+	private static Map serverLoads = new HashMap();
 	private static boolean term=false;
 	private static Listener listener;
 	private static ServerConnecter serverConnecter;
@@ -81,12 +82,20 @@ public class Control extends Thread {
 			String secret = (String) clientMsg.get("secret");
             switch (command){
                 case "LOGIN":
-
-                    if(login(username, secret)){
-                        con.writeMsg("Logged in as "+username+"\n");
+                    JSONObject loginMsg = login(username, secret);
+                    con.writeMsg(loginMsg.toJSONString());
+                    if(loginMsg.get("command").equals("LOGIN_SUCCESS")){
+                        log.info("A user has logged in: "+username);
+                        //Do redirect.
+                        JSONObject redirMsg = redirect();
+                        if(redirMsg.containsKey("hostname")){
+                            con.writeMsg(redirMsg.toJSONString());
+                            log.info("Redirect user "+username+" to "+redirMsg.get("hostname")+":"+redirMsg.get("port")+".");
+                            con.closeCon();
+                        }
                     }
                     else {
-                        con.writeMsg("Failed to log in."+"\n");
+                        con.closeCon();
                     }
                     break;
 				case "REGISTER":
@@ -101,20 +110,62 @@ public class Control extends Thread {
 		return true;
 	}
 
-	public synchronized boolean login(String username, String secret){
-	    registration.put(username, secret);
+	/*
+	 * Compare the input username and secret with the ones in (HashMap)registration.
+	 * Return a JSONObject.
+	 */
+	public synchronized JSONObject login(String username, String secret){
 
-	    if(registration.containsKey(username)){
-	        if(registration.get(username)!=null&&registration.get(username).equals(secret)
-                    ||username.equals("anonymous")){
-	            log.info("A user has logged in: "+username);
+        JSONObject loginResult = new JSONObject();
+        if(username != null && username != "" ){
+	        if(secret != null && registration.containsKey(username) && registration.get(username).equals(secret)
+                    || username.equals("anonymous")){
+
+	            loginResult.put("command", "LOGIN_SUCCESS");
+                loginResult.put("info", "Logged in as user: "+username);
             }
+            else {
+                loginResult.put("command", "LOGIN_FAILED");
+                loginResult.put("info", "Username and secret do not match.");
+			}
         }
         else{
-
-	        return false;
+            loginResult.put("command", "LOGIN_FAILED");
+            loginResult.put("info", "A username must be provided.");
         }
-	    return true;
+	    return loginResult;
+    }
+
+
+    /*
+     * Check load balance and redirect users if there is a need.
+     * The keys of HashMap serverLoads are HashMap type and contain hostname and port number of other servers.
+     * The values are the load of each other servers.
+     *
+     */
+    public JSONObject redirect(){
+        JSONObject redirMsg = new JSONObject();
+
+        //For testing, need to be deleted later.
+        HashMap server1 = new HashMap();
+        server1.put("hostname", "localhost");
+        server1.put("port", "3781");
+        serverLoads.put(server1, 0);
+        //
+
+        for(Object key : serverLoads.keySet()){
+            if(this.getConnections().size() - (int)serverLoads.get(key) >= 2){
+                Map redirSer = (HashMap) key;
+                String redirHost = redirSer.get("hostname").toString();
+                String redirPort = redirSer.get("port").toString();
+                redirMsg.put("command", "REDIRECT");
+                redirMsg.put("hostname", redirHost);
+                redirMsg.put("port", redirPort);
+                break;
+            }
+        }
+
+        return redirMsg;
     }
 
 

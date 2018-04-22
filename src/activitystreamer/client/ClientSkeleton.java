@@ -131,7 +131,7 @@ public class ClientSkeleton extends Thread {
             /*
              * test for register
              */
-            register("Arron", "fmnmpp3ai91qb3gc2bvs14g3ue");
+            register("Aaron", "qq");
         }
 
         MessageListener ml = new MessageListener(inreader);
