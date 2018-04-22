@@ -5,6 +5,7 @@ import java.io.Serializable;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,8 +21,14 @@ public class Control extends Thread {
 	private static boolean term=false;
 	private static Listener listener;
 	private static ServerConnecter serverConnecter;
+	private static int connectedServerCount = 0;
+	private static int lockAllowedCount = 0;
+	private static Connection registerClient;
+	private static String clientUsername;
+	private static boolean isRegistering = false;
+	private static Connection requestServer;
 
-	
+
 	protected static Control control = null;
 	
 	public static Control getInstance() {
@@ -38,12 +45,14 @@ public class Control extends Thread {
 		// connect to another server when initiate the server
 		// start a listener
 		try {
-			initiateConnection();
-			if (!connections.isEmpty()) {
-				/*
+			if (connections.isEmpty()) {
+                initiateConnection();
+                if(!connections.isEmpty()) {
+                /*
 				 * sending authentication here
 				 * connections.get(0).writeMsg();
 				 */
+                }
 			}
 			listener = new Listener();
 		} catch (IOException e1) {
@@ -71,9 +80,7 @@ public class Control extends Thread {
 	public synchronized boolean process(Connection con,String msg){
 
 		System.out.println(msg);
-
         JSONParser parser = new JSONParser();
-
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
             String command = (String) clientMsg.get("command");
@@ -81,7 +88,6 @@ public class Control extends Thread {
 			String secret = (String) clientMsg.get("secret");
             switch (command){
                 case "LOGIN":
-
                     if(login(username, secret)){
                         con.writeMsg("Logged in as "+username+"\n");
                     }
@@ -89,8 +95,54 @@ public class Control extends Thread {
                         con.writeMsg("Failed to log in."+"\n");
                     }
                     break;
+
 				case "REGISTER":
-					doRegister(con,username,secret);
+					isRegistering = doRegister(con,username,secret);
+					log.info("register for " + username);
+					break;
+
+                case "AUTHENTICATE":
+                    // do authenticate here
+                    connectedServerCount += 1;
+                    break;
+
+                case "LOCK_REQUEST":
+                    if (connectedServerCount <= 1 && registration.containsKey(username)) {
+						sendLockResult(con, username, secret, false);
+						log.info("Lock denied");
+					} else if (connectedServerCount <= 1 && !registration.containsKey(username)) {
+                    	sendLockResult(con, username, secret, true);
+                    	registration.put(username, secret);
+                    	log.info("Lock allowed");
+                    } else {
+                    	log.info(connectedServerCount);
+                        requestServer = con;
+                        List<Connection> otherServers = connections.subList(0,connectedServerCount);
+                        otherServers.remove(con);
+                        sendLockRequest(otherServers, username, secret);
+                    }
+					break;
+
+                case "LOCK_ALLOWED":
+                    lockAllowedCount += 1;
+                    if (isRegistering && lockAllowedCount == connectedServerCount) {
+                        registerClient.writeMsg(registerSuccess(clientUsername, true));
+                        registration.put(username,secret);
+                        lockAllowedCount = 0;
+                    } else if (!isRegistering && lockAllowedCount == connectedServerCount - 1){
+						requestServer.writeMsg(registerSuccess(clientUsername, true));
+						registration.put(username,secret);
+                    }
+                    break;
+
+                case "LOCK_DENIED":
+                    if (isRegistering) {
+						registerClient.writeMsg(registerSuccess(clientUsername, false));
+						lockAllowedCount = 0;
+					} else {
+                    	requestServer.writeMsg(registerSuccess(clientUsername, false));
+					}
+				default:
 					break;
             }
         }
@@ -126,15 +178,20 @@ public class Control extends Thread {
      *
      * Only support one server now, without checking the other server;
      */
-	public boolean doRegister(Connection con, String userName, String secret) {
-
-		if (registration.containsKey(userName)) {
-			con.writeMsg(registerSuccess(userName,false));
-			return false;
-		} else {
-			con.writeMsg(registerSuccess(userName,true));
-			registration.put(userName, secret);
-			return true;
+	public boolean doRegister(Connection con, String username, String secret) {
+		if (registration.containsKey(username)) {
+			con.writeMsg(registerSuccess(username,false));
+            return false;
+		} else if (connectedServerCount > 0) {
+		       sendLockRequest(connections.subList(0, connectedServerCount), username, username);
+		       log.info("tset: " + connections.subList(0,connectedServerCount));
+		       registerClient = con;
+		       clientUsername = username;
+		       return true;
+        } else {
+		    con.writeMsg(registerSuccess(username,true));
+		    registration.put(username, secret);
+		    return false;
 		}
 	}
 
@@ -152,6 +209,44 @@ public class Control extends Thread {
 		}
 
 		return resultJSON.toJSONString();
+	}
+
+    /*
+     * not completed yet
+     */
+	public boolean sendLockRequest(List<Connection> cons, String username, String secret) {
+		JSONObject lockInfo = new JSONObject();
+		lockInfo.put("command", "LOCK_REQUEST");
+		lockInfo.put("username", username);
+		lockInfo.put("secret", secret);
+		String lockRequestJSON = lockInfo.toJSONString();
+        broadcast(cons, lockRequestJSON);
+        log.info("send lock request for: " + username + "to " + connections.get(0));
+		return true;
+	}
+
+	public boolean sendLockResult(Connection con, String username, String secret, boolean isAllowed) {
+	    JSONObject lockResult = new JSONObject();
+	    if (isAllowed) {
+			lockResult.put("command", "LOCK_ALLOWED");
+		} else {
+			lockResult.put("command", "LOCK_DENIED");
+		}
+		lockResult.put("username", username);
+		lockResult.put("secret", secret);
+		String lockResultJSON = lockResult.toJSONString();
+		con.writeMsg(lockResultJSON);
+        return true;
+    }
+
+	/*
+	 * Broadcast message to certain connections
+	 */
+	public boolean broadcast(List<Connection> cons, String msg) {
+		for (Connection c : cons) {
+			c.writeMsg(msg);
+		}
+		return true;
 	}
 
 

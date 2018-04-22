@@ -1,8 +1,10 @@
 package activitystreamer;
 
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Scanner;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -101,7 +103,29 @@ public class Server {
 		log.info("starting server");
 		
 		
-		final Control c = Control.getInstance(); 
+		final Control c = Control.getInstance();
+
+
+		/*
+		 * SCANNER FOR TESTING
+		 */
+		Scanner scanner = new Scanner(System.in);
+		String inputStr = null;
+
+		//While the user input differs from "exit"
+		try {
+			while (!(inputStr = scanner.nextLine()).equals("exit")) {
+
+				// Send the input string to the server by writing to the socket output stream
+			//	c.writeMsg(inputStr + "\n");
+				c.getConnections().get(0).writeMsg(inputStr);
+				System.out.println("message: "+ inputStr + " send");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+
 		// the following shutdown hook doesn't really work, it doesn't give us enough time to
 		// cleanup all of our connections before the jvm is terminated.
 		Runtime.getRuntime().addShutdownHook(new Thread() {
