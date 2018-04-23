@@ -17,8 +17,11 @@ import org.json.simple.parser.JSONParser;
 public class Control extends Thread {
 	private static final Logger log = LogManager.getLogger();
 	private static ArrayList<Connection> connections;
+	//Registration is a HashMap containing the username and secret of registered clients.
 	private static Map registration = new HashMap();
-	private static Map serverLoads = new HashMap();
+    //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
+	private static List<HashMap> serverLoads;
+	private static String serverID = "server 0";
 	private static boolean term=false;
 	private static Listener listener;
 	private static ServerConnecter serverConnecter;
@@ -114,6 +117,7 @@ public class Control extends Thread {
                 case "AUTHENTICATE":
                     // do authenticate here
                     connectedServerCount += 1;
+                    serverID = "server "+connectedServerCount;
                     break;
 
                 case "LOCK_REQUEST":
@@ -156,6 +160,42 @@ public class Control extends Thread {
 						broadcastLockDenied(con, username, secret);
                     	//requestServer.writeMsg(registerSuccess(clientUsername, false));
 					}
+
+
+				//When a SERVER_ANNOUNCE message is received, update the serverLoads according to the message.
+                case "SERVER_ANNOUNCE":
+                    try{
+                        JSONObject announceInfo = (JSONObject) parser.parse(msg);
+                        //Iterate the serverLoads to check if the message is from a known server.
+                        //If there was, update the existing one.
+                        for(HashMap server: serverLoads){
+
+                            if(server.get("serverID").equals(announceInfo.get("serverID"))){
+                                server.put("load", announceInfo.get("load"));
+                                break;
+                            }
+                        }
+                        //If no known server was found, add a new HashMap to serverLoads for the new server.
+                        HashMap newServer = new HashMap();
+                        newServer.put("serverID", announceInfo.get("serverID"));
+						newServer.put("hostname", announceInfo.get("hostname"));
+						newServer.put("port", announceInfo.get("port"));
+						newServer.put("load", announceInfo.get("load"));
+						this.serverLoads.add(newServer);
+						//Forward this message to other server.
+                        List<Connection> forwardServers = connections.subList(0,connectedServerCount);
+                        forwardServers.remove(con);
+                        broadcast(forwardServers, msg);
+
+                    }
+                    catch (Exception e){
+                        JSONObject invalidMsg = new JSONObject();
+                        invalidMsg.put("command", "INVALID_MESSAGE");
+                        con.writeMsg(invalidMsg.toJSONString());
+                    }
+                    break;
+
+
 				default:
 					break;
             }
@@ -196,25 +236,17 @@ public class Control extends Thread {
 
     /*
      * Check load balance and redirect users if there is a need.
-     * The keys of HashMap serverLoads are HashMap type and contain hostname and port number of other servers.
-     * The values are the load of each other servers.
-     *
+     * Iterate the serverLoads to find if there is a server with a load which is at least 2 clients less than the current one.
+     * If there was, send a message to the client which tries to connect, to redirect it to the server with a smaller load found.
      */
     public JSONObject redirect(){
         JSONObject redirMsg = new JSONObject();
 
-        //For testing, need to be deleted later.
-        HashMap server1 = new HashMap();
-        server1.put("hostname", "localhost");
-        server1.put("port", "3781");
-        serverLoads.put(server1, 0);
-        //
+        for(HashMap server : serverLoads){
+            if(this.getConnections().size() - connectedServerCount - serverLoads.size() >= 2){
 
-        for(Object key : serverLoads.keySet()){
-            if(this.getConnections().size() - (int)serverLoads.get(key) >= 2){
-                Map redirSer = (HashMap) key;
-                String redirHost = redirSer.get("hostname").toString();
-                String redirPort = redirSer.get("port").toString();
+                String redirHost = server.get("hostname").toString();
+                String redirPort = server.get("port").toString();
                 redirMsg.put("command", "REDIRECT");
                 redirMsg.put("hostname", redirHost);
                 redirMsg.put("port", redirPort);
@@ -316,9 +348,22 @@ public class Control extends Thread {
 	public boolean broadcast(List<Connection> cons, String msg) {
 		for (Connection c : cons) {
 			c.writeMsg(msg);
+
+
 		}
 		return true;
 	}
+
+	public void announce(){
+        JSONObject announceInfo = new JSONObject();
+        announceInfo.put("command", "SERVER_ANNOUNCE");
+        announceInfo.put("id", serverID);
+        announceInfo.put("load", connections.size() - connectedServerCount);
+        announceInfo.put("hostname", Settings.getLocalHostname());
+        announceInfo.put("port", Settings.getLocalPort());
+        List<Connection> otherServers = connections.subList(0, connectedServerCount);
+        broadcast(otherServers, announceInfo.toJSONString());
+    }
 
 
 	/*
@@ -367,6 +412,9 @@ public class Control extends Thread {
 				log.debug("doing activity");
 				term=doActivity();
 			}
+			if(connectedServerCount >= 1){
+			    announce();
+            }
 			
 		}
 		log.info("closing "+connections.size()+" connections");
