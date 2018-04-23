@@ -32,7 +32,6 @@ public class Server {
 	public static void main(String[] args) {
 		
 		log.info("reading command line options");
-		
 		Options options = new Options();
 		options.addOption("lp",true,"local port number");
 		options.addOption("rp",true,"remote port number");

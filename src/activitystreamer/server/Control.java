@@ -88,29 +88,37 @@ public class Control extends Thread {
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
             String command = (String) clientMsg.get("command");
-			String username = (String)clientMsg.get("username");
-			String secret = (String) clientMsg.get("secret");
+			String username;
+			String secret;
             switch (command){
                 case "LOGIN":
+                    username = (String)clientMsg.get("username");
+                    secret = (String) clientMsg.get("secret");
                     JSONObject loginMsg = login(username, secret);
                     con.writeMsg(loginMsg.toJSONString());
                     if(loginMsg.get("command").equals("LOGIN_SUCCESS")){
                         log.info("A user has logged in: "+username);
                         //Do redirect.
-                        JSONObject redirMsg = redirect();
-                        if(redirMsg.containsKey("hostname")){
-                            con.writeMsg(redirMsg.toJSONString());
-                            log.info("Redirect user "+username+" to "+redirMsg.get("hostname")+":"+redirMsg.get("port")+".");
-                            con.closeCon();
+                        if(serverLoads != null && serverLoads.size() > 0){
+                            JSONObject redirMsg = redirect();
+                            if(redirMsg.containsKey("hostname")){
+                                con.writeMsg(redirMsg.toJSONString());
+                                log.info("Redirect user "+username+" to "+redirMsg.get("hostname")+":"+redirMsg.get("port")+".");
+                                con.closeCon();
+                                connectionClosed(con);
+                            }
                         }
                     }
                     else {
                         con.closeCon();
+                        connectionClosed(con);
                     }
                     break;
 
 				case "REGISTER":
-					isRegistering = doRegister(con,username,secret);
+                    username = (String)clientMsg.get("username");
+                    secret = (String) clientMsg.get("secret");
+				    isRegistering = doRegister(con,username,secret);
 					log.info("register for " + username);
 					break;
 
@@ -121,6 +129,8 @@ public class Control extends Thread {
                     break;
 
                 case "LOCK_REQUEST":
+                    username = (String)clientMsg.get("username");
+                    secret = (String) clientMsg.get("secret");
                     if (connectedServerCount <= 1 && registration.containsKey(username)) {
 						sendLockResult(con, username, secret, false);
 						log.info("Lock denied");
@@ -138,6 +148,8 @@ public class Control extends Thread {
 					break;
 
                 case "LOCK_ALLOWED":
+                    username = (String)clientMsg.get("username");
+                    secret = (String) clientMsg.get("secret");
                     lockAllowedCount += 1;
                     if (isRegistering && lockAllowedCount == connectedServerCount) {
                         registerClient.writeMsg(registerSuccess(clientUsername, true));
@@ -150,6 +162,8 @@ public class Control extends Thread {
                     break;
 
                 case "LOCK_DENIED":
+                    username = (String)clientMsg.get("username");
+                    secret = (String) clientMsg.get("secret");
                     if (isRegistering) {
 						registerClient.writeMsg(registerSuccess(clientUsername, false));
 						lockAllowedCount = 0;
@@ -272,7 +286,7 @@ public class Control extends Thread {
             return false;
 		} else if (connectedServerCount > 0) {
 		       sendLockRequest(connections.subList(0, connectedServerCount), username, username);
-		       log.info("tset: " + connections.subList(0,connectedServerCount));
+		       log.info("test: " + connections.subList(0,connectedServerCount));
 		       registerClient = con;
 		       clientUsername = username;
 		       return true;
