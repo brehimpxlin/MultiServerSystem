@@ -124,16 +124,12 @@ public class Server {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
-
 		// the following shutdown hook doesn't really work, it doesn't give us enough time to
 		// cleanup all of our connections before the jvm is terminated.
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			public void run() {  
 				c.setTerm(true);
 				c.interrupt();
-
-
 		    }
 		 });
 	}

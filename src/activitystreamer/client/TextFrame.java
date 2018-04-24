@@ -29,7 +29,7 @@ import com.google.gson.JsonParser;
 public class TextFrame extends JFrame implements ActionListener {
 	private static final Logger log = LogManager.getLogger();
 	private JTextArea inputText;
-	private JTextArea outputText;
+	private static JTextArea outputText;
 	private JButton sendButton;
 	private JButton disconnectButton;
 	private JSONParser parser = new JSONParser();
@@ -76,12 +76,14 @@ public class TextFrame extends JFrame implements ActionListener {
 		setVisible(true);
 	}
 
-	public void setOutputText(final JSONObject obj){
+	public static void setOutputText(final JSONObject obj){
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		JsonParser jp = new JsonParser();
 		JsonElement je = jp.parse(obj.toJSONString());
 		String prettyJsonString = gson.toJson(je);
-		outputText.setText(prettyJsonString);
+//		outputText.setText(prettyJsonString);
+		outputText.append(prettyJsonString);
+		outputText.append("\n");
 		outputText.revalidate();
 		outputText.repaint();
 	}

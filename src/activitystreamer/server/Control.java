@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import activitystreamer.util.Settings;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 public class Control extends Thread {
 	private static final Logger log = LogManager.getLogger();
@@ -80,14 +81,21 @@ public class Control extends Thread {
 	 */
 	public synchronized boolean process(Connection con,String msg){
 
-		System.out.println(msg);
+//		System.out.println(msg);
         JSONParser parser = new JSONParser();
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
             String command = (String) clientMsg.get("command");
-			String username = (String)clientMsg.get("username");
-			String secret = (String) clientMsg.get("secret");
+            //modified to deal with the server broadcast msg.
+			String username = null;
+			String secret = null;
+			if(!command.equals("ACTIVITY_BROADCAST")) {
+				username = (String) clientMsg.get("username");
+				secret = (String) clientMsg.get("secret");
+			}
             switch (command){
+//				String username = (String)clientMsg.get("username");
+//				String secret = (String) clientMsg.get("secret");
                 case "LOGIN":
                     JSONObject loginMsg = login(username, secret);
                     con.writeMsg(loginMsg.toJSONString());
@@ -156,6 +164,22 @@ public class Control extends Thread {
 						broadcastLockDenied(con, username, secret);
                     	//requestServer.writeMsg(registerSuccess(clientUsername, false));
 					}
+				case "ACTIVITY_MESSAGE":
+//					String activity = (String) clientMsg.get("activity");
+//					System.out.println("+++++++"+msg);
+					log.info("Received activity message from: " + Settings.getRemoteHostname()+":"+Settings.getRemotePort());
+					broadcastToClient(msg);
+					JSONObject actBroadcast = new JSONObject();
+					actBroadcast.put("command","ACTIVITY_BROADCAST");
+					actBroadcast.put("activity",msg);
+					broadcastToServer(actBroadcast.toJSONString());
+					break;
+				case "ACTIVITY_BROADCAST":
+					log.info("Received activity broadcast message from server: " + Settings.getRemoteHostname()+":"+Settings.getRemotePort());
+					JSONObject  activityBroadcast= new JSONObject();
+					JSONObject actObject = (JSONObject) activityBroadcast.get("activity");
+					broadcastToClient(actObject.toJSONString());
+					break;
 				default:
 					break;
             }
@@ -250,6 +274,55 @@ public class Control extends Thread {
 		    return false;
 		}
 	}
+	public synchronized void broadcastToClient(String activityJSON){
+		for(int i = connectedServerCount;i<connections.size();i++){
+			connections.get(i).writeMsg(activityJSON);
+			log.info("Broadcast message to client: " + Settings.getRemoteHostname()+":"+Settings.getRemotePort());
+		}
+	}public synchronized void broadcastToServer(String activityJSON){
+		if(connectedServerCount>0){
+			for(int j=0;j<connectedServerCount;j++){
+				connections.get(j).writeMsg(activityJSON);
+				log.info("Broadcast message to server: " + Settings.getRemoteHostname()+":"+Settings.getRemotePort());
+			}
+		}else{
+			log.info("No server connected! No broadcast sent to server.");
+		}
+	}
+	//check whether the username and secret matches the user logged in
+	public boolean validUsernameSecret(String username, String secret){
+		return (username.equals(Settings.getUsername()) && secret.equals(Settings.getSecret()));
+	}
+
+//	public boolean validMessage(String msg){
+//		JSONParser parser = new JSONParser();
+//		try {
+//			JSONObject obj = (JSONObject)parser.parse(msg);
+//			try
+////			if ()
+//		} catch (ParseException e) {
+//			e.printStackTrace();
+//		}
+//	}
+
+//	public boolean validActivity(Connection con, String username, String secret){
+//		if(!(Settings.getUsername().equals("anonymous"))||validUsernameSecret(username,secret)){
+//			JSONObject authenticateObj = new JSONObject();
+//			authenticateObj.put("command","AUTHENTICATION_FAIL");
+//			authenticateObj.put("info","the supplied secret is incorrect: "+secret);
+//			con.writeMsg(authenticateObj.toString());
+//			return false;
+//		}else{
+//			JSONObject authenticateObj = new JSONObject();
+//			authenticateObj.put("command","AUTHENTICATION_FAIL");
+//			authenticateObj.put("info","the supplied secret is incorrect: "+secret);
+//			con.writeMsg(authenticateObj.toString());
+//			return false;
+//		}
+//		if()
+//
+//
+//	}
 
 	/*
 	 * Return REGISTER_SUCCESS or REGISTER_FAIL
