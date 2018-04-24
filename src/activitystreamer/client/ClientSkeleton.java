@@ -49,9 +49,6 @@ public class ClientSkeleton extends Thread {
 
 
 
-	public void sendActivityObject(JSONObject activityObj){
-		
-	}
 
 	public boolean connect(){
 
@@ -109,7 +106,21 @@ public class ClientSkeleton extends Thread {
             e.printStackTrace();
         }
     }
-
+    public void sendActivityObject(JSONObject activityObj){
+        JSONObject activity = new JSONObject();
+        activity.put("command", "ACTIVITY_MESSAGE");
+        activity.put("username", Settings.getUsername());
+        activity.put("secret", Settings.getSecret());
+        activity.put("activity",activityObj.toString());
+        String activityJSON = activity.toJSONString();
+        try{
+//            System.out.println("----------------"+activityJSON);
+            writeMsg(activityJSON);
+            log.info("message sent from: " + Settings.getUsername());
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+    }
 
 
 	public void disconnect(){
@@ -123,6 +134,7 @@ public class ClientSkeleton extends Thread {
 	public void run(){
 
         if(connect()){
+
             String username = Settings.getUsername();
             String secret = Settings.getSecret();
             if(username.equals("anonymous") || !secret.equals("")){
@@ -135,6 +147,7 @@ public class ClientSkeleton extends Thread {
                 register(username, secret);
                 login(username, secret);
             }
+
         }
 
         MessageListener ml = new MessageListener(inreader);
