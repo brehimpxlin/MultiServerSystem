@@ -63,6 +63,7 @@ public class Control extends Thread {
 			log.fatal("failed to startup a listening thread: "+e1);
 			System.exit(-1);
 		}
+		start();
 	}
 	
 	public void initiateConnection(){
