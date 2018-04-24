@@ -21,8 +21,9 @@ public class ClientSkeleton extends Thread {
     private PrintWriter outwriter;
     private boolean open = false;
     private Socket socket;
+    private String username = Settings.getUsername();
+    private String secret = Settings.getSecret();
 
-	
 	public static ClientSkeleton getInstance(){
 		if(clientSolution==null){
 			clientSolution = new ClientSkeleton();
@@ -129,14 +130,18 @@ public class ClientSkeleton extends Thread {
 	public boolean isConnected(){
 	    return this.socket.isConnected();
     }
-
+    public String getUsername(){
+	    return username;
+    }
+    public String getSecret(){
+        return secret;
+    }
 
 	public void run(){
 
         if(connect()){
 
-            String username = Settings.getUsername();
-            String secret = Settings.getSecret();
+
             if(username.equals("anonymous") || !secret.equals("")){
                 login(username, secret);
             }
@@ -145,12 +150,12 @@ public class ClientSkeleton extends Thread {
                 secret =  "" + (random.nextLong() * 100000);
                 System.out.println("Try to login using username: "+username+" and secret: "+secret);
                 register(username, secret);
-                login(username, secret);
+
             }
 
         }
 
-        MessageListener ml = new MessageListener(inreader);
+        MessageListener ml = new MessageListener(inreader, clientSolution);
         ml.start();
 
 

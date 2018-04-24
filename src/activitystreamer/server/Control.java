@@ -57,6 +57,8 @@ public class Control extends Thread {
 				 * sending authentication here
 				 * connections.get(0).writeMsg();
 				 */
+                    connectedServerCount += 1;
+                    serverID = "server "+connectedServerCount;
                 }
 			}
 			listener = new Listener();
@@ -90,15 +92,6 @@ public class Control extends Thread {
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
             String command = (String) clientMsg.get("command");
-//<<<<<<< HEAD
-//            //modified to deal with the server broadcast msg.
-//			String username = null;
-//			String secret = null;
-//			if(!command.equals("ACTIVITY_BROADCAST")) {
-//				username = (String) clientMsg.get("username");
-//				secret = (String) clientMsg.get("secret");
-//			}
-//=======
 			String username;
 			String secret;
             switch (command){
@@ -138,7 +131,8 @@ public class Control extends Thread {
                 case "AUTHENTICATE":
                     // do authenticate here
                     connectedServerCount += 1;
-                    serverID = "server "+connectedServerCount;
+
+
                     break;
 
                 case "LOCK_REQUEST":
@@ -269,6 +263,7 @@ public class Control extends Thread {
             else {
                 loginResult.put("command", "LOGIN_FAILED");
                 loginResult.put("info", "Username and secret do not match.");
+                log.info(username+" "+secret);
 			}
         }
         else{
@@ -503,8 +498,8 @@ public class Control extends Thread {
 				break;
 			}
 			if(!term){
-				log.debug("doing activity");
-				term=doActivity();
+//				log.debug("doing activity");
+//				term=doActivity();
 			}
 			if(connectedServerCount >= 1){
 			    announce();
