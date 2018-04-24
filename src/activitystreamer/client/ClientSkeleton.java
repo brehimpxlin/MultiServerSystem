@@ -1,8 +1,7 @@
 package activitystreamer.client;
-
 import java.io.*;
 import java.net.Socket;
-
+import java.util.Random;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.simple.JSONObject;
@@ -134,16 +133,20 @@ public class ClientSkeleton extends Thread {
 
 	public void run(){
 
-
-
         if(connect()){
-            login(Settings.getUsername(), Settings.getSecret());
 
-            /*
-             * test for register
-             */
-            register("Aaron", "qq");
-//            login("Aaron","qq");
+            String username = Settings.getUsername();
+            String secret = Settings.getSecret();
+            if(username.equals("anonymous") || !secret.equals("")){
+                login(username, secret);
+            }
+            else{
+                Random random = new Random();
+                secret =  "" + (random.nextLong() * 100000);
+                System.out.println("Try to login using username: "+username+" and secret: "+secret);
+                register(username, secret);
+                login(username, secret);
+            }
 
         }
 

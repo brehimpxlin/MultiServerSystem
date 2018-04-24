@@ -48,20 +48,6 @@ public class Connection extends Thread {
 		return false;
 	}
 
-	/*
-     * Sending authenticate message to another server
-	 */
-	public void sendAu() {
-
-	}
-
-	/*
-     * Authenticate the incoming connection
-	 */
-	public void Authenticate() {
-
-	}
-
 
 	public void closeCon(){
 		if(open){
@@ -70,6 +56,7 @@ public class Connection extends Thread {
 				term=true;
 				inreader.close();
 				out.close();
+				this.socket.close();
 			} catch (IOException e) {
 				// already closed?
 				log.error("received exception closing the connection "+Settings.socketAddress(socket)+": "+e);
