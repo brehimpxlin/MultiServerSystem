@@ -53,6 +53,7 @@ public class Control extends Thread {
 			if (connections.isEmpty()) {
                 initiateConnection();
                 if(!connections.isEmpty()) {
+                	connectedServerCount += 1;
                 /*
 				 * sending authentication here
 				 * connections.get(0).writeMsg();
@@ -99,7 +100,7 @@ public class Control extends Thread {
 //				String secret = (String) clientMsg.get("secret");
                 case "LOGIN":
                     username = (String)clientMsg.get("username");
-                    secret = (String) clientMsg.get("secret");
+                    secret = (String)clientMsg.get("secret");
                     JSONObject loginMsg = login(username, secret);
                     con.writeMsg(loginMsg.toJSONString());
                     if(loginMsg.get("command").equals("LOGIN_SUCCESS")){
@@ -163,8 +164,9 @@ public class Control extends Thread {
                         registration.put(username,secret);
                         lockAllowedCount = 0;
                     } else if (!isRegistering && lockAllowedCount == connectedServerCount - 1){
-						requestServer.writeMsg(registerSuccess(clientUsername, true));
+						sendLockResult(requestServer, username, secret, true);
 						registration.put(username,secret);
+						lockAllowedCount = 0;
                     }
                     break;
 
@@ -177,6 +179,7 @@ public class Control extends Thread {
 					} else {
 						if (registration.containsKey(username) && registration.containsValue(secret)) {
 							registration.remove(username, secret);
+							lockAllowedCount = 0;
 						}
 						broadcastLockDenied(con, username, secret);
                     	//requestServer.writeMsg(registerSuccess(clientUsername, false));

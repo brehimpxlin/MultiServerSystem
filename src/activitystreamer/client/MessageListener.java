@@ -32,10 +32,10 @@ public class MessageListener extends Thread {
 //                JSONObject activity = new JSONObject;
 //                TextFrame tf = new TextFrame();
                 TextFrame.setOutputText(clientMsg);
+
                 if(clientMsg.get("command").equals("REGISTER_SUCCESS")){
                     this.client.login(client.getUsername(), client.getSecret());
                 }
-
 
             }
         } catch (SocketException e) {
