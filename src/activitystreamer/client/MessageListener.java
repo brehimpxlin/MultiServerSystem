@@ -28,6 +28,7 @@ public class MessageListener extends Thread {
 //                JSONObject activity = new JSONObject;
 //                TextFrame tf = new TextFrame();
                 TextFrame.setOutputText(clientMsg);
+
             }
         } catch (SocketException e) {
             System.out.println("Socket closed because the user typed exit");

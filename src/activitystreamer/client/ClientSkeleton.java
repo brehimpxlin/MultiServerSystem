@@ -106,6 +106,8 @@ public class ClientSkeleton extends Thread {
             e.printStackTrace();
         }
     }
+
+
     public void sendActivityObject(JSONObject activityObj){
         JSONObject activity = new JSONObject();
         activity.put("command", "ACTIVITY_MESSAGE");
@@ -114,7 +116,7 @@ public class ClientSkeleton extends Thread {
         activity.put("activity",activityObj.toString());
         String activityJSON = activity.toJSONString();
         try{
-//            System.out.println("----------------"+activityJSON);
+            System.out.println("----------------"+activityJSON);
             writeMsg(activityJSON);
             log.info("message sent from: " + Settings.getUsername());
         }catch (IOException e){
