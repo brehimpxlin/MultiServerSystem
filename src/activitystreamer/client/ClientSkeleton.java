@@ -2,6 +2,9 @@ package activitystreamer.client;
 import java.io.*;
 import java.net.Socket;
 import java.util.Random;
+
+import activitystreamer.server.Connection;
+import activitystreamer.server.Control;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.simple.JSONObject;
@@ -106,15 +109,19 @@ public class ClientSkeleton extends Thread {
             e.printStackTrace();
         }
     }
+
+
+
+
+
     public void sendActivityObject(JSONObject activityObj){
         JSONObject activity = new JSONObject();
         activity.put("command", "ACTIVITY_MESSAGE");
         activity.put("username", Settings.getUsername());
-        activity.put("secret", Settings.getSecret());
+//        activity.put("secret", Settings.getSecret());
         activity.put("activity",activityObj.toString());
         String activityJSON = activity.toJSONString();
         try{
-//            System.out.println("----------------"+activityJSON);
             writeMsg(activityJSON);
             log.info("message sent from: " + Settings.getUsername());
         }catch (IOException e){
@@ -122,9 +129,28 @@ public class ClientSkeleton extends Thread {
         }
     }
 
+    public void sendInvalidInfoObj(String error_str){
+        JSONObject errorObj = new JSONObject();
+        if(error_str.equals("NO_COMMAND")) {
+//			log.error("invalid message, JSON parse error while parsing message");
+            errorObj.put("command", "INVALID_MESSAGE");
+            errorObj.put("info", "the received message did not contain a command");
+
+        }else{
+            errorObj.put("command", "INVALID_MESSAGE");
+            errorObj.put("info", "JSON parse error while parsing message");
+        }
+        try {
+            writeMsg(errorObj.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
 	public void disconnect(){
-		
+//        Connection.
+        log.debug("connection closed to "+Settings.socketAddress(socket));
+//        Control.getInstance().connectionClosed();
 	}
 	public boolean isConnected(){
 	    return this.socket.isConnected();

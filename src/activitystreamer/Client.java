@@ -29,8 +29,7 @@ public class Client {
 	
 	public static void main(String[] args) {
 		
-		log.
-				info("reading command line options");
+		log.info("reading command line options");
 		
 		Options options = new Options();
 		options.addOption("u",true,"username");
