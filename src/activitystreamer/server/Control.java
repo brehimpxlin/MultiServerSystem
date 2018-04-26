@@ -33,7 +33,7 @@ public class Control extends Thread {
 	private static String clientUsername;
 	private static boolean isRegistering = false;
 	private static Connection requestServer;
-
+	private static String secret = "fmnmpp3ai91qb3gc2bvs14g3ue";
 
 	protected static Control control = null;
 	
@@ -59,8 +59,10 @@ public class Control extends Thread {
 				 * sending authentication here
 				 * connections.get(0).writeMsg();
 				 */
-                    connectedServerCount += 1;
-                    serverID = "server "+connectedServerCount;
+
+					String serverSecret = Settings.getSecret();
+                	sendAu(connections.get(0), serverSecret);
+                	serverID = "server "+ connectedServerCount;
                 }
 			}
 			listener = new Listener();
@@ -132,9 +134,11 @@ public class Control extends Thread {
 
                 case "AUTHENTICATE":
                     // do authenticate here
-                    connectedServerCount += 1;
-
-
+					if(doAu(con,this.secret)){
+                        connectedServerCount += 1;
+					}else{
+					    con.closeCon();
+					}
                     break;
 
                 case "LOCK_REQUEST":
@@ -501,6 +505,37 @@ public class Control extends Thread {
 			connection.closeCon();
 		}
 		listener.setTerm(true);
+	}
+
+	public void sendAu(Connection con, String secret) {
+
+		JSONObject authenMsg = new JSONObject();
+		authenMsg.put("command", "AUTHENTICATE");
+		authenMsg.put("secret", secret);
+		String authenJSON = authenMsg.toJSONString();
+		try {
+			con.writeMsg(authenJSON);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+
+	public boolean doAu(Connection con, String s) {
+		if (s.equals(secret)) {
+			return true;
+		} else {
+			JSONObject authenfailMsg = new JSONObject();
+			authenfailMsg.put("command", "AUTHENTICATION_FAIL");
+			authenfailMsg.put("info", "the supplied secret is incorrect: " + secret);
+			String authenfailJSON = authenfailMsg.toJSONString();
+			try {
+				con.writeMsg(authenfailJSON);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			return false;
+		}
 	}
 	
 	public boolean doActivity(){
