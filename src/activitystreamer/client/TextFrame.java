@@ -29,9 +29,10 @@ import com.google.gson.JsonParser;
 public class TextFrame extends JFrame implements ActionListener {
 	private static final Logger log = LogManager.getLogger();
 	private JTextArea inputText;
-	private JTextArea outputText;
+	private static JTextArea outputText;
 	private JButton sendButton;
 	private JButton disconnectButton;
+	private JButton clearButton;
 	private JSONParser parser = new JSONParser();
 	
 	public TextFrame(){
@@ -65,41 +66,66 @@ public class TextFrame extends JFrame implements ActionListener {
 		outputText = new JTextArea();
 		scrollPane = new JScrollPane(outputText);
 		outputPanel.add(scrollPane,BorderLayout.CENTER);
+
+		JPanel buttonGroup1 = new JPanel();
+		clearButton = new JButton("Clear");
+//		disconnectButton = new JButton("Disconnect");
+		buttonGroup1.add(clearButton);
+		outputPanel.add(buttonGroup1,BorderLayout.SOUTH);
+		clearButton.addActionListener(this);
+//		disconnectButton.addActionListener(this);
+
 		
 		mainPanel.add(inputPanel);
 		mainPanel.add(outputPanel);
 		add(mainPanel);
 		
 		setLocationRelativeTo(null); 
-		setSize(1280,768);
+//		setSize(1280,768);
+		setSize(800,600);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setVisible(true);
 	}
 
-	public void setOutputText(final JSONObject obj){
+	public static void setOutputText(final JSONObject obj){
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		JsonParser jp = new JsonParser();
 		JsonElement je = jp.parse(obj.toJSONString());
 		String prettyJsonString = gson.toJson(je);
-		outputText.setText(prettyJsonString);
+//		outputText.setText(prettyJsonString);
+		outputText.append(prettyJsonString);
+		outputText.append("\n");
 		outputText.revalidate();
 		outputText.repaint();
 	}
-	
+
+
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		if(e.getSource()==sendButton){
 			String msg = inputText.getText().trim().replaceAll("\r","").replaceAll("\n","").replaceAll("\t", "");
 			JSONObject obj;
+//			JSONObject errorObj = null;
 			try {
 				obj = (JSONObject) parser.parse(msg);
 				ClientSkeleton.getInstance().sendActivityObject(obj);
+//				System.out.println("----------"+obj.get("command"));
+//				if(obj.get("command") == null){
+//					ClientSkeleton.getInstance().sendActivityObject(obj);
+//				}
+//				else{
+//					log.error("the received message did not contain a command, data not sent");
+//					ClientSkeleton.getInstance().sendInvalidInfoObj("NO_COMMAND");
+//				}
 			} catch (ParseException e1) {
 				log.error("invalid JSON object entered into input text field, data not sent");
+				ClientSkeleton.getInstance().sendInvalidInfoObj("JSON_PARSE_ERROR");
 			}
 			
 		} else if(e.getSource()==disconnectButton){
 			ClientSkeleton.getInstance().disconnect();
+		} else if(e.getSource()==clearButton){
+			outputText.setText("");
 		}
 	}
 }

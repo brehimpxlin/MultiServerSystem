@@ -1,8 +1,10 @@
 package activitystreamer.client;
-
 import java.io.*;
 import java.net.Socket;
+import java.util.Random;
 
+import activitystreamer.server.Connection;
+import activitystreamer.server.Control;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.simple.JSONObject;
@@ -22,8 +24,9 @@ public class ClientSkeleton extends Thread {
     private PrintWriter outwriter;
     private boolean open = false;
     private Socket socket;
+    private String username = Settings.getUsername();
+    private String secret = Settings.getSecret();
 
-	
 	public static ClientSkeleton getInstance(){
 		if(clientSolution==null){
 			clientSolution = new ClientSkeleton();
@@ -50,15 +53,8 @@ public class ClientSkeleton extends Thread {
 
 
 
-	public void sendActivityObject(JSONObject activityObj){
-		
-	}
 
 	public boolean connect(){
-
-
-
-
 
 	    try{
 			Socket socket = new Socket(Settings.getRemoteHostname(), Settings.getRemotePort());
@@ -92,35 +88,97 @@ public class ClientSkeleton extends Thread {
         loginInfo.put("command", "LOGIN");
         loginInfo.put("username", username);
         loginInfo.put("secret", secret);
-        String loginText = loginInfo.toJSONString()+"\n";
+        String loginText = loginInfo.toJSONString();
         try{
             writeMsg(loginText);
             log.info("Logging in.");
-        }
-        catch (IOException e){
+        }catch (IOException e){
             e.printStackTrace();
         }
     }
 
+    public void register(String username, String secret){
+        JSONObject registerInfo = new JSONObject();
+        registerInfo.put("command", "REGISTER");
+        registerInfo.put("username", username);
+        registerInfo.put("secret", secret);
+        String registerJSON = registerInfo.toJSONString();
+        try{
+            writeMsg(registerJSON);
+            log.info("register for: " + username);
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+    
+    public void sendActivityObject(JSONObject activityObj){
+        JSONObject activity = new JSONObject();
+        activity.put("command", "ACTIVITY_MESSAGE");
+        activity.put("username", Settings.getUsername());
+//        activity.put("secret", Settings.getSecret());
+        activity.put("activity",activityObj.toString());
+        String activityJSON = activity.toJSONString();
+        try{
+            System.out.println("----------------"+activityJSON);
+            writeMsg(activityJSON);
+            log.info("message sent from: " + Settings.getUsername());
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+    }
 
+    public void sendInvalidInfoObj(String error_str){
+        JSONObject errorObj = new JSONObject();
+        if(error_str.equals("NO_COMMAND")) {
+//			log.error("invalid message, JSON parse error while parsing message");
+            errorObj.put("command", "INVALID_MESSAGE");
+            errorObj.put("info", "the received message did not contain a command");
+
+        }else{
+            errorObj.put("command", "INVALID_MESSAGE");
+            errorObj.put("info", "JSON parse error while parsing message");
+        }
+        try {
+            writeMsg(errorObj.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
 	public void disconnect(){
-		
+//        Connection.
+        log.debug("connection closed to "+Settings.socketAddress(socket));
+//        Control.getInstance().connectionClosed();
 	}
 	public boolean isConnected(){
 	    return this.socket.isConnected();
     }
-
+    public String getUsername(){
+	    return username;
+    }
+    public String getSecret(){
+        return secret;
+    }
 
 	public void run(){
 
-
-
         if(connect()){
-            login(Settings.getUsername(), Settings.getSecret());
+
+
+            if(username.equals("anonymous") || !secret.equals("")){
+                login(username, secret);
+            }
+            else{
+                Random random = new Random();
+                secret =  "" + (random.nextLong() * 100000);
+                System.out.println("Try to login using username: "+username+" and secret: "+secret);
+                register(username, secret);
+
+            }
+
         }
 
-        MessageListener ml = new MessageListener(inreader);
+        MessageListener ml = new MessageListener(inreader, clientSolution);
         ml.start();
 
 

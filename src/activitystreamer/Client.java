@@ -77,7 +77,7 @@ public class Client {
 		ClientSkeleton c = ClientSkeleton.getInstance();
 
 
-		/*
+
 		//Use a scanner to read input from the console
 		Scanner scanner = new Scanner(System.in);
 		String inputStr = null;
@@ -87,13 +87,13 @@ public class Client {
             while (!(inputStr = scanner.nextLine()).equals("exit")) {
 
                 // Send the input string to the server by writing to the socket output stream
-                c.writeMsg(inputStr + "\n");
+                c.writeMsg(inputStr);
                 System.out.println("message: "+ inputStr + " send");
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        */
+
 
 	}
 
