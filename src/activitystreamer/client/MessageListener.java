@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import activitystreamer.client.ClientSkeleton;
+import activitystreamer.util.Settings;
 
 public class MessageListener extends Thread {
     private BufferedReader reader;
@@ -34,7 +35,13 @@ public class MessageListener extends Thread {
                 TextFrame.setOutputText(clientMsg);
 
                 if(clientMsg.get("command").equals("REGISTER_SUCCESS")){
-                    this.client.login(client.getUsername(), client.getSecret());
+                    this.client.login(Settings.getUsername(), Settings.getSecret());
+                }
+                if(clientMsg.get("command").equals("REDIRECT")){
+                    Settings.setRemoteHostname((String)clientMsg.get("hostname"));
+                    Settings.setRemotePort(new Integer((String) clientMsg.get("port")));
+                    this.client.connect();
+
                 }
 
             }
