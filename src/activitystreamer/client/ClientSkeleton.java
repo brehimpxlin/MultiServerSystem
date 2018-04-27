@@ -119,7 +119,7 @@ public class ClientSkeleton extends Thread {
         activity.put("activity",activityObj.toString());
         String activityJSON = activity.toJSONString();
         try{
-            System.out.println("----------------"+activityJSON);
+//            System.out.println("----------------"+activityJSON);
             writeMsg(activityJSON);
             log.info("message sent from: " + Settings.getUsername());
         }catch (IOException e){
@@ -148,7 +148,16 @@ public class ClientSkeleton extends Thread {
 	public void disconnect(){
 //        Connection.
         log.debug("connection closed to "+Settings.socketAddress(socket));
-//        Control.getInstance().connectionClosed();
+        JSONObject disconnectOBJ = new JSONObject();
+        disconnectOBJ.put("command", "LOGOUT");
+        try {
+            writeMsg(disconnectOBJ.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+
 	}
 	public boolean isConnected(){
 	    return this.socket.isConnected();

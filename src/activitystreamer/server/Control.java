@@ -255,7 +255,11 @@ public class Control extends Thread {
                     }
                     break;
 
-
+				case "LOGOUT":
+//					connections.get()
+					connections.remove(con);
+//					con.closeCon();
+					break;
 				default:
 
 					break;

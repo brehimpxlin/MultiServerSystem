@@ -91,7 +91,7 @@ public class TextFrame extends JFrame implements ActionListener {
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		JsonParser jp = new JsonParser();
 		JsonElement je = jp.parse(obj.toJSONString());
-		String prettyJsonString = gson.toJson(je);
+		String prettyJsonString = gson.toJson(je).replaceAll("\\\\","");
 //		outputText.setText(prettyJsonString);
 		outputText.append(prettyJsonString);
 		outputText.append("\n");
@@ -124,6 +124,9 @@ public class TextFrame extends JFrame implements ActionListener {
 			
 		} else if(e.getSource()==disconnectButton){
 			ClientSkeleton.getInstance().disconnect();
+			setVisible(false);
+			System.exit(0);
+//			this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		} else if(e.getSource()==clearButton){
 			outputText.setText("");
 		}

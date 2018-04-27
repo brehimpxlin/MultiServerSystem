@@ -26,7 +26,7 @@ public class Client {
 		formatter.printHelp("ActivityStreamer.Client", header, options, footer, true);
 		System.exit(-1);
 	}
-	
+
 	public static void main(String[] args) {
 		
 		log.info("reading command line options");
