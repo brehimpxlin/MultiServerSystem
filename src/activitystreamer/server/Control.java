@@ -3,10 +3,10 @@ package activitystreamer.server;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import activitystreamer.util.FailureController;
+import com.oracle.javafx.jmx.json.JSONException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,7 +22,7 @@ public class Control extends Thread {
 	//Registration is a HashMap containing the username and secret of registered clients.
 	private static Map registration = new HashMap();
     //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
-	private static List<HashMap> serverLoads;
+	private static List<HashMap> serverLoads = new LinkedList<>();
 	private static String serverID = "server 0";
 	private static boolean term=false;
 	private static Listener listener;
@@ -97,6 +97,10 @@ public class Control extends Thread {
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
             String command = (String) clientMsg.get("command");
+            if (command == null) {
+                FailureController.sendInvalidInfoObj(con, "NO_COMMAND");
+                return false;
+            }
 			String username;
 			String secret;
             switch (command){
@@ -156,7 +160,7 @@ public class Control extends Thread {
                     } else {
                     	log.info(connectedServerCount);
                         requestServer = con;
-                        List<Connection> otherServers = connections.subList(0,connectedServerCount);
+                        List<Connection> otherServers = new ArrayList<>(connections.subList(0,connectedServerCount));
                         otherServers.remove(con);
                         sendLockRequest(otherServers, username, secret);
                     }
@@ -223,40 +227,48 @@ public class Control extends Thread {
                         JSONObject announceInfo = (JSONObject) parser.parse(msg);
                         //Iterate the serverLoads to check if the message is from a known server.
                         //If there was, update the existing one.
-                        for(HashMap server: serverLoads){
-
-                            if(server.get("serverID").equals(announceInfo.get("serverID"))){
-                                server.put("load", announceInfo.get("load"));
-                                break;
+                        boolean isNewServer = true;
+                        if(serverLoads.size() > 0){
+                            for(HashMap server: serverLoads){
+                                if(server.get("serverID").equals(announceInfo.get("serverID"))){
+                                    server.put("load", announceInfo.get("load"));
+                                    isNewServer = false;
+                                    break;
+                                }
                             }
+
                         }
+
                         //If no known server was found, add a new HashMap to serverLoads for the new server.
-                        HashMap newServer = new HashMap();
-                        newServer.put("serverID", announceInfo.get("serverID"));
-						newServer.put("hostname", announceInfo.get("hostname"));
-						newServer.put("port", announceInfo.get("port"));
-						newServer.put("load", announceInfo.get("load"));
-						this.serverLoads.add(newServer);
-						//Forward this message to other server.
-                        List<Connection> forwardServers = connections.subList(0,connectedServerCount);
+                        if(isNewServer == true){
+                            HashMap newServer = new HashMap();
+                            newServer.put("serverID", announceInfo.get("serverID"));
+                            newServer.put("hostname", announceInfo.get("hostname"));
+                            newServer.put("port", announceInfo.get("port"));
+                            newServer.put("load", announceInfo.get("load"));
+                            this.serverLoads.add(newServer);
+
+                        }
+                        //Forward this message to other server.
+                        List<Connection> forwardServers = new ArrayList<>(connections.subList(0,connectedServerCount));
                         forwardServers.remove(con);
                         broadcast(forwardServers, msg);
 
-                    }
-                    catch (Exception e){
+                    } catch (Exception e){
                         JSONObject invalidMsg = new JSONObject();
                         invalidMsg.put("command", "INVALID_MESSAGE");
                         con.writeMsg(invalidMsg.toJSONString());
+                          log.info(e);
                     }
                     break;
 
 
 				default:
-
 					break;
             }
-        }
-        catch (Exception e){
+        } catch (JSONException | ClassCastException | ParseException e) {
+            FailureController.sendInvalidInfoObj(con, "JSON_PARSE_ERROR");
+        } catch (Exception e){
             e.printStackTrace();
         }
 
@@ -279,7 +291,8 @@ public class Control extends Thread {
             }
             else {
                 loginResult.put("command", "LOGIN_FAILED");
-                loginResult.put("info", "Username and secret do not match.");
+                log.info("test----- ");
+                loginResult.put("info", "Username and secret do not match. secret: "+secret);
                 log.info(username+" "+secret);
 			}
         }
@@ -299,7 +312,7 @@ public class Control extends Thread {
 
         for(HashMap server : serverLoads){
             if(this.getConnections().size() - connectedServerCount - serverLoads.size() >= 2){
-
+                log.info(this.getConnections().size()+", "+ connectedServerCount);
                 String redirHost = server.get("hostname").toString();
                 String redirPort = server.get("port").toString();
                 redirMsg.put("command", "REDIRECT");
@@ -326,7 +339,7 @@ public class Control extends Thread {
 			con.writeMsg(registerSuccess(username,false));
             return false;
 		} else if (connectedServerCount > 0) {
-		       sendLockRequest(connections.subList(0, connectedServerCount), username, username);
+		       sendLockRequest(connections.subList(0, connectedServerCount), username, secret);
 		       log.info("test: " + connections.subList(0,connectedServerCount));
 		       registerClient = con;
 		       clientUsername = username;
@@ -441,7 +454,7 @@ public class Control extends Thread {
 	public void announce(){
         JSONObject announceInfo = new JSONObject();
         announceInfo.put("command", "SERVER_ANNOUNCE");
-        announceInfo.put("id", serverID);
+        announceInfo.put("serverID", serverID);
         announceInfo.put("load", connections.size() - connectedServerCount);
         announceInfo.put("hostname", Settings.getLocalHostname());
         announceInfo.put("port", Settings.getLocalPort());

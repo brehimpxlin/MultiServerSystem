@@ -170,7 +170,9 @@ public class ClientSkeleton extends Thread {
             }
             else{
                 Random random = new Random();
-                secret =  "" + (random.nextLong() * 100000);
+
+                this.secret =  "" + (random.nextLong() * 100000);
+                Settings.setSecret(this.secret);
                 System.out.println("Try to login using username: "+username+" and secret: "+secret);
                 register(username, secret);
 

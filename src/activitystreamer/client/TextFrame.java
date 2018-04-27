@@ -92,7 +92,6 @@ public class TextFrame extends JFrame implements ActionListener {
 		JsonParser jp = new JsonParser();
 		JsonElement je = jp.parse(obj.toJSONString());
 		String prettyJsonString = gson.toJson(je);
-//		outputText.setText(prettyJsonString);
 		outputText.append(prettyJsonString);
 		outputText.append("\n");
 		outputText.revalidate();
@@ -105,18 +104,11 @@ public class TextFrame extends JFrame implements ActionListener {
 		if(e.getSource()==sendButton){
 			String msg = inputText.getText().trim().replaceAll("\r","").replaceAll("\n","").replaceAll("\t", "");
 			JSONObject obj;
-//			JSONObject errorObj = null;
+
 			try {
 				obj = (JSONObject) parser.parse(msg);
 				ClientSkeleton.getInstance().sendActivityObject(obj);
-//				System.out.println("----------"+obj.get("command"));
-//				if(obj.get("command") == null){
-//					ClientSkeleton.getInstance().sendActivityObject(obj);
-//				}
-//				else{
-//					log.error("the received message did not contain a command, data not sent");
-//					ClientSkeleton.getInstance().sendInvalidInfoObj("NO_COMMAND");
-//				}
+
 			} catch (ParseException e1) {
 				log.error("invalid JSON object entered into input text field, data not sent");
 				ClientSkeleton.getInstance().sendInvalidInfoObj("JSON_PARSE_ERROR");
