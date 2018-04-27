@@ -5,6 +5,8 @@ import java.io.Serializable;
 import java.net.Socket;
 import java.util.*;
 
+import activitystreamer.util.FailureController;
+import com.oracle.javafx.jmx.json.JSONException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -94,6 +96,10 @@ public class Control extends Thread {
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
             String command = (String) clientMsg.get("command");
+            if (command == null) {
+                FailureController.sendInvalidInfoObj(con, "NO_COMMAND");
+                return false;
+            }
 			String username;
 			String secret;
             switch (command){
@@ -256,9 +262,10 @@ public class Control extends Thread {
 
 
 				default:
-
 					break;
             }
+        } catch (JSONException | ClassCastException | ParseException e) {
+            FailureController.sendInvalidInfoObj(con, "JSON_PARSE_ERROR");
         } catch (Exception e){
             e.printStackTrace();
         }
