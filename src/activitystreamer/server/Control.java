@@ -33,7 +33,8 @@ public class Control extends Thread {
 	private static String clientUsername;
 	private static boolean isRegistering = false;
 	private static Connection requestServer;
-	private static String secret = "fmnmpp3ai91qb3gc2bvs14g3ue";
+	//private static String secret = "fmnmpp3ai91qb3gc2bvs14g3ue";
+	private static String serverSecret;
 
 	protected static Control control = null;
 	
@@ -134,7 +135,8 @@ public class Control extends Thread {
 
                 case "AUTHENTICATE":
                     // do authenticate here
-					if(doAu(con,this.secret)){
+					serverSecret = (String)clientMsg.get("secret");
+					if(doAu(con,serverSecret)){
                         connectedServerCount += 1;
 					}else{
 					    con.closeCon();
@@ -495,7 +497,7 @@ public class Control extends Thread {
 //				term=doActivity();
 			}
 			if(connectedServerCount >= 1){
-			    announce();
+//			    announce();
             }
 			
 		}
@@ -522,12 +524,12 @@ public class Control extends Thread {
 
 
 	public boolean doAu(Connection con, String s) {
-		if (s.equals(secret)) {
+		if (s.equals("fmnmpp3ai91qb3gc2bvs14g3ue")) {
 			return true;
 		} else {
 			JSONObject authenfailMsg = new JSONObject();
 			authenfailMsg.put("command", "AUTHENTICATION_FAIL");
-			authenfailMsg.put("info", "the supplied secret is incorrect: " + secret);
+			authenfailMsg.put("info", "the supplied secret is incorrect: " + serverSecret);
 			String authenfailJSON = authenfailMsg.toJSONString();
 			try {
 				con.writeMsg(authenfailJSON);
