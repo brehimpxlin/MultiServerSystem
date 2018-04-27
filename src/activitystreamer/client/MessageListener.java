@@ -35,7 +35,7 @@ public class MessageListener extends Thread {
                 TextFrame.setOutputText(clientMsg);
 
                 if(clientMsg.get("command").equals("REGISTER_SUCCESS")){
-                    this.client.login(Settings.getUsername(), Settings.getSecret());
+                    this.client.login(this.client.getUsername(), this.client.getSecret());
                 }
                 if(clientMsg.get("command").equals("REDIRECT")){
                     Settings.setRemoteHostname((String)clientMsg.get("hostname"));

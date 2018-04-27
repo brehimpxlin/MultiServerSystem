@@ -246,8 +246,7 @@ public class Control extends Thread {
                         forwardServers.remove(con);
                         broadcast(forwardServers, msg);
 
-                    }
-                    catch (Exception e){
+                    } catch (Exception e){
                         JSONObject invalidMsg = new JSONObject();
                         invalidMsg.put("command", "INVALID_MESSAGE");
                         con.writeMsg(invalidMsg.toJSONString());
@@ -260,8 +259,7 @@ public class Control extends Thread {
 
 					break;
             }
-        }
-        catch (Exception e){
+        } catch (Exception e){
             e.printStackTrace();
         }
 
@@ -284,7 +282,8 @@ public class Control extends Thread {
             }
             else {
                 loginResult.put("command", "LOGIN_FAILED");
-                loginResult.put("info", "Username and secret do not match.");
+                log.info("test----- ");
+                loginResult.put("info", "Username and secret do not match. secret: "+secret);
                 log.info(username+" "+secret);
 			}
         }
@@ -331,7 +330,7 @@ public class Control extends Thread {
 			con.writeMsg(registerSuccess(username,false));
             return false;
 		} else if (connectedServerCount > 0) {
-		       sendLockRequest(connections.subList(0, connectedServerCount), username, username);
+		       sendLockRequest(connections.subList(0, connectedServerCount), username, secret);
 		       log.info("test: " + connections.subList(0,connectedServerCount));
 		       registerClient = con;
 		       clientUsername = username;
