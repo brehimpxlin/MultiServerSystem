@@ -10,6 +10,7 @@ import org.json.simple.parser.ParseException;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.util.*;
 
 public class Control extends Thread {
@@ -20,6 +21,8 @@ public class Control extends Thread {
 	private static Map registration = new HashMap();
     //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
 	private static List<HashMap<String, Integer>> serverLoads = new LinkedList<>();
+	private static List<SocketAddress> serverList = new LinkedList<>();
+    private static List<SocketAddress> clientList = new LinkedList<>();
 	private static String serverID = "server 0";
 	private static boolean term=false;
 	private static Listener listener;
@@ -70,7 +73,28 @@ public class Control extends Thread {
 			}
 		}
 	}
-	
+
+    public boolean checkCon(Connection con, String type){
+        switch (type){
+            case "SERVER":
+                for(SocketAddress server: serverList){
+                    if(server.equals(con.getSocket().getRemoteSocketAddress())){
+                        return true;
+                    }
+                }
+                break;
+
+            case "CLIENT":
+                for(SocketAddress client: clientList){
+                    if(client.equals(con.getSocket().getRemoteSocketAddress())){
+                        return true;
+                    }
+                }
+                break;
+        }
+        return false;
+    }
+
 	/*
 	 * Processing incoming messages from the connection.
 	 * Return true if the connection should close.
@@ -96,6 +120,7 @@ public class Control extends Thread {
                     if(loginMsg.get("command").equals("LOGIN_SUCCESS")){
                         log.info("A user has logged in: "+username);
                         //Do redirect.
+
                         if(serverLoads != null && serverLoads.size() > 0){
                             log.info("Number of connected server: "+connectedServerCount);
                             JSONObject redirMsg = redirect();
@@ -104,8 +129,10 @@ public class Control extends Thread {
                                 log.info("Redirect user "+username+" to "+redirMsg.get("hostname")+":"+redirMsg.get("port")+".");
                                 con.closeCon();
                                 connectionClosed(con);
+                                break;
                             }
                         }
+                        clientList.add(con.getSocket().getRemoteSocketAddress());
                     }
                     else {
                         con.closeCon();
@@ -114,7 +141,13 @@ public class Control extends Thread {
                     break;
 
 				case "REGISTER":
-                    username = (String)clientMsg.get("username");
+				    if(checkCon(con, "CLIENT")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("REGISTER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
+				    username = (String)clientMsg.get("username");
                     secret = (String) clientMsg.get("secret");
 				    isRegistering = doRegister(con,username,secret);
 					log.info("register for " + username);
@@ -125,6 +158,7 @@ public class Control extends Thread {
 
 					if(doAu(con,(String)clientMsg.get("secret"))){
                         connectedServerCount += 1;
+                        serverList.add(con.getSocket().getRemoteSocketAddress());
 					}else{
 					    con.closeCon();
 					    connectionClosed(con);
@@ -132,6 +166,12 @@ public class Control extends Thread {
                     break;
 
                 case "LOCK_REQUEST":
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
                     username = (String)clientMsg.get("username");
                     secret = (String)clientMsg.get("secret");
                     if (connectedServerCount <= 1 && registration.containsKey(username)) {
@@ -151,6 +191,12 @@ public class Control extends Thread {
 					break;
 
                 case "LOCK_ALLOWED":
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
                     username = (String)clientMsg.get("username");
                     secret = (String) clientMsg.get("secret");
                     lockAllowedCount += 1;
@@ -166,6 +212,12 @@ public class Control extends Thread {
                     break;
 
                 case "LOCK_DENIED":
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
                     username = (String)clientMsg.get("username");
                     secret = (String) clientMsg.get("secret");
                     if (isRegistering) {
@@ -193,7 +245,13 @@ public class Control extends Thread {
 					break;
 
 				case "ACTIVITY_BROADCAST":
-					log.info("Activity broadcast message received from server." );
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
+				    log.info("Activity broadcast message received from server." );
 					JSONObject  activityBroadcast = new JSONObject();
 					String activityMessage = (String)clientMsg.get("activity");
 					broadcastToServer(con,connections, msg);
@@ -202,6 +260,12 @@ public class Control extends Thread {
 
 				//When a SERVER_ANNOUNCE message is received, update the serverLoads according to the message.
                 case "SERVER_ANNOUNCE":
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
                     try{
                         JSONObject announceInfo = (JSONObject) parser.parse(msg);
                         //Iterate the serverLoads to check if the message is from a known server.
@@ -253,7 +317,8 @@ public class Control extends Thread {
 
 
 				case "LOGOUT":
-					connections.remove(con);
+					clientList.remove(con.getSocket().getRemoteSocketAddress());
+				    connections.remove(con);
 					break;
 
 				default:
@@ -531,6 +596,8 @@ public class Control extends Thread {
 		authenMsg.put("command", "AUTHENTICATE");
 		authenMsg.put("secret", secret);
 		String authenJSON = authenMsg.toJSONString();
+        log.info("Authenticate send to: "+con.getSocket().getRemoteSocketAddress());
+		serverList.add(con.getSocket().getRemoteSocketAddress());
 		try {
 			con.writeMsg(authenJSON);
 		} catch (Exception e) {

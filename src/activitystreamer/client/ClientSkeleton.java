@@ -164,8 +164,9 @@ public class ClientSkeleton extends Thread {
             else{
                 this.secret =  Settings.nextSecret();
                 Settings.setSecret(this.secret);
-                System.out.println("Try to login using username: "+username+" and secret: "+secret);
                 register(username, secret);
+                System.out.println("Try to login using username: "+username+" and secret: "+secret);
+
 
             }
 

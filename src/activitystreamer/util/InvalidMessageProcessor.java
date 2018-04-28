@@ -19,6 +19,14 @@ public class InvalidMessageProcessor {
                 errorObj.put("info", "The received message did not contain a command.");
                 break;
 
+            case "REGISTER":
+                errorObj.put("info", "Client has already logged in.");
+                break;
+
+            case "SERVER":
+                errorObj.put("info", "Not authenticated server.");
+                break;
+
             default:
                 errorObj.put("info", "JSON parse error while parsing message");
                 break;
