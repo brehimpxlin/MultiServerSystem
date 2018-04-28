@@ -11,7 +11,7 @@
 #### Server
 ```
 -lp Set local port number
--rh Set remote port number
+-rp Set remote port number
 -rh Set remote hostname 
 -lh Set local hostname
 -a activity interval in milliseconds
