@@ -116,7 +116,7 @@ public class ClientSkeleton extends Thread {
         JSONObject activity = new JSONObject();
         activity.put("command", "ACTIVITY_MESSAGE");
         activity.put("username", Settings.getUsername());
-//        activity.put("secret", Settings.getSecret());
+//        activity.put("username","test");
         activity.put("activity",activityObj.toString());
         String activityJSON = activity.toJSONString();
         try{
