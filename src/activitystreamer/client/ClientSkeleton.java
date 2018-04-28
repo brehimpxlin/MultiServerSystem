@@ -127,24 +127,31 @@ public class ClientSkeleton extends Thread {
         }
     }
 
-    public void sendInvalidInfoObj(String error_str){
-        JSONObject errorObj = new JSONObject();
-        if(error_str.equals("NO_COMMAND")) {
-//			log.error("invalid message, JSON parse error while parsing message");
-            errorObj.put("command", "INVALID_MESSAGE");
-            errorObj.put("info", "the received message did not contain a command");
-
-        }else{
-            errorObj.put("command", "INVALID_MESSAGE");
-            errorObj.put("info", "JSON parse error while parsing message");
-        }
-        try {
-            writeMsg(errorObj.toString());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
+//    public void sendInvalidInfoObj(String error_str){
+//        JSONObject errorObj = new JSONObject();
+//        if(error_str.equals("NO_COMMAND")) {
+////			log.error("invalid message, JSON parse error while parsing message");
+//            errorObj.put("command", "INVALID_MESSAGE");
+//            errorObj.put("info", "the received message did not contain a command");
+//
+//        }else{
+//            errorObj.put("command", "INVALID_MESSAGE");
+//            errorObj.put("info", "JSON parse error while parsing message");
+//        }
+//        try {
+//            writeMsg(errorObj.toString());
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//    }
+//    public void printInvalidMessageToClient(){
+//        JSONObject errorObj = new JSONObject();
+//        errorObj.put("command", "INVALID_MESSAGE");
+//        errorObj.put("info", "JSON parse error while parsing message");
+//
+//
+//
+//    }
 	public void disconnect(){
 //        Connection.
         log.debug("connection closed to "+Settings.socketAddress(socket));

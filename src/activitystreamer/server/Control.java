@@ -254,7 +254,14 @@ public class Control extends Thread {
                           log.info(e);
                     }
                     break;
-
+//				case "INVALID_MESSAGE":
+////					JSONObject invalidMsg = new JSONObject();
+//					JSONParser parser2 = new JSONParser();
+//					JSONObject invalidMsg = (JSONObject) parser2.parse(msg);
+//					invalidMsg.put("command","INVALID_MESSAGE");
+//					invalidMsg.put("info",invalidMsg.get("info"));
+//					con.writeMsg(invalidMsg.toString());
+//					break;
 				case "LOGOUT":
 //					connections.get()
 					connections.remove(con);

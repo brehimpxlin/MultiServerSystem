@@ -118,8 +118,14 @@ public class TextFrame extends JFrame implements ActionListener {
 //					ClientSkeleton.getInstance().sendInvalidInfoObj("NO_COMMAND");
 //				}
 			} catch (ParseException e1) {
+//                ClientSkeleton.getInstance().sendInvalidInfoObj("JSON_PARSE_ERROR");
 				log.error("invalid JSON object entered into input text field, data not sent");
-				ClientSkeleton.getInstance().sendInvalidInfoObj("JSON_PARSE_ERROR");
+
+				JSONObject errorObj = new JSONObject();
+				errorObj.put("command", "INVALID_MESSAGE");
+				errorObj.put("info", "JSON parse error while parsing message");
+				setOutputText(errorObj);
+
 			}
 			
 		} else if(e.getSource()==disconnectButton){
