@@ -91,7 +91,9 @@ public class TextFrame extends JFrame implements ActionListener {
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		JsonParser jp = new JsonParser();
 		JsonElement je = jp.parse(obj.toJSONString());
-		String prettyJsonString = gson.toJson(je);
+		String prettyJsonString = gson.toJson(je).replaceAll("\\\\","");
+//		outputText.setText(prettyJsonString);
+
 		outputText.append(prettyJsonString);
 		outputText.append("\n");
 		outputText.revalidate();
@@ -110,12 +112,21 @@ public class TextFrame extends JFrame implements ActionListener {
 				ClientSkeleton.getInstance().sendActivityObject(obj);
 
 			} catch (ParseException e1) {
+//                ClientSkeleton.getInstance().sendInvalidInfoObj("JSON_PARSE_ERROR");
 				log.error("invalid JSON object entered into input text field, data not sent");
-				ClientSkeleton.getInstance().sendInvalidInfoObj("JSON_PARSE_ERROR");
+
+				JSONObject errorObj = new JSONObject();
+				errorObj.put("command", "INVALID_MESSAGE");
+				errorObj.put("info", "JSON parse error while parsing message");
+				setOutputText(errorObj);
+
 			}
 			
 		} else if(e.getSource()==disconnectButton){
 			ClientSkeleton.getInstance().disconnect();
+			setVisible(false);
+			System.exit(0);
+//			this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		} else if(e.getSource()==clearButton){
 			outputText.setText("");
 		}

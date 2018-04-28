@@ -120,7 +120,7 @@ public class ClientSkeleton extends Thread {
         activity.put("activity",activityObj.toString());
         String activityJSON = activity.toJSONString();
         try{
-            System.out.println("----------------"+activityJSON);
+//            System.out.println("----------------"+activityJSON);
             writeMsg(activityJSON);
             log.info("message sent from: " + Settings.getUsername());
         }catch (IOException e){
@@ -128,28 +128,20 @@ public class ClientSkeleton extends Thread {
         }
     }
 
-    public void sendInvalidInfoObj(String error_str){
-        JSONObject errorObj = new JSONObject();
-        if(error_str.equals("NO_COMMAND")) {
-//			log.error("invalid message, JSON parse error while parsing message");
-            errorObj.put("command", "INVALID_MESSAGE");
-            errorObj.put("info", "the received message did not contain a command");
-
-        }else{
-            errorObj.put("command", "INVALID_MESSAGE");
-            errorObj.put("info", "JSON parse error while parsing message");
-        }
-        try {
-            writeMsg(errorObj.toString());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
 	public void disconnect(){
 //        Connection.
         log.debug("connection closed to "+Settings.socketAddress(socket));
-//        Control.getInstance().connectionClosed();
+        JSONObject disconnectOBJ = new JSONObject();
+        disconnectOBJ.put("command", "LOGOUT");
+        try {
+            writeMsg(disconnectOBJ.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+
 	}
 	public boolean isConnected(){
 	    return this.socket.isConnected();
@@ -170,9 +162,7 @@ public class ClientSkeleton extends Thread {
                 login(username, secret);
             }
             else{
-                Random random = new Random();
-
-                this.secret =  "" + (random.nextLong() * 100000);
+                this.secret =  Settings.nextSecret();
                 Settings.setSecret(this.secret);
                 System.out.println("Try to login using username: "+username+" and secret: "+secret);
                 register(username, secret);

@@ -2,7 +2,6 @@ package activitystreamer.server;
 
 import activitystreamer.util.InvalidMessageProcessor;
 import activitystreamer.util.Settings;
-//import com.oracle.javafx.jmx.json.JSONException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.simple.JSONObject;
@@ -24,14 +23,12 @@ public class Control extends Thread {
 	private static String serverID = "server 0";
 	private static boolean term=false;
 	private static Listener listener;
-	private static ServerConnecter serverConnecter;
 	private static int connectedServerCount = 0;
 	private static int lockAllowedCount = 0;
 	private static Connection registerClient;
 	private static String clientUsername;
 	private static boolean isRegistering = false;
 	private static Connection requestServer;
-
 	protected static Control control = null;
 	
 	public static Control getInstance() {
@@ -51,17 +48,7 @@ public class Control extends Thread {
 		// connect to another server when initiate the server
 		// start a listener
 		try {
-//			if (connections.isEmpty()) {
                 initiateConnection();
-//                if(!connections.isEmpty()) {
-
-                /*
-				 * sending authentication here
-				 * connections.get(0).writeMsg();
-				 */
-
-//                }
-//			}
 			listener = new Listener();
 		} catch (IOException e1) {
 			log.fatal("failed to startup a listening thread: "+e1);
@@ -90,7 +77,6 @@ public class Control extends Thread {
 	 */
 	public synchronized boolean process(Connection con,String msg){
 
-//		System.out.println(msg);
         JSONParser parser = new JSONParser();
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
@@ -136,6 +122,7 @@ public class Control extends Thread {
 
                 case "AUTHENTICATE":
                     // do authenticate here
+
 					if(doAu(con,(String)clientMsg.get("secret"))){
                         connectedServerCount += 1;
 					}else{
@@ -195,16 +182,12 @@ public class Control extends Thread {
 					break;
 
 				case "ACTIVITY_MESSAGE":
-//					String activity = (String) clientMsg.get("activity");
-//					System.out.println("+++++++"+msg);
 					log.info("Activity message received from client.");
 					broadcastToClient(connections,msg);
 					JSONObject actBroadcast = new JSONObject();
 					actBroadcast.put("command","ACTIVITY_BROADCAST");
 					actBroadcast.put("activity",msg);
-//					broadcastToServer(con,connections, actBroadcast.toString());
 					if (connectedServerCount > 0) {
-//						log.info(connections.subList(0, connectedServerCount));
 						broadcast(connections.subList(0, connectedServerCount), actBroadcast.toJSONString());
 					}
 					break;
@@ -213,9 +196,7 @@ public class Control extends Thread {
 					log.info("Activity broadcast message received from server." );
 					JSONObject  activityBroadcast = new JSONObject();
 					String activityMessage = (String)clientMsg.get("activity");
-					//JSONObject actObject = (JSONObject) activityBroadcast.get("activity");
 					broadcastToServer(con,connections, msg);
-//					log.info("!!!!" + activityMessage);
 					broadcastToClient(connections,activityMessage);
 					break;
 
@@ -258,6 +239,7 @@ public class Control extends Thread {
                     }
                     break;
 
+
                 case "AUTHENTICATION_FAIL":
                     connectedServerCount = connectedServerCount - 1;
                     con.closeCon();
@@ -268,6 +250,11 @@ public class Control extends Thread {
 
                 case "INVALID_MESSAGE":
                     break;
+
+
+				case "LOGOUT":
+					connections.remove(con);
+					break;
 
 				default:
                     con.writeMsg(InvalidMessageProcessor.invalidInfo("UNKNOWN_COMMAND"));
@@ -367,16 +354,10 @@ public class Control extends Thread {
 	}
 
 	public synchronized void broadcastToServer(Connection incommingCon,ArrayList<Connection> connections, String activityJSON){
-//		List<Connection> templist;
 		templist = (ArrayList)connections.clone();
-//		templist = connections;
         if(connectedServerCount>1){
-//			System.out.println("connections(temp) count (before remove)"+templist.size());
-//			System.out.println("connections count (before remove)"+connections.size());
 			templist.remove(incommingCon);
-//            System.out.println("server count"+connectedServerCount);
-//            System.out.println("connections(temp) count (after remove)"+templist.size());
-//			System.out.println("connections count (after remove)"+templist.size());
+
             for(int i = 0;i<connectedServerCount-1;i++){
 				templist.get(i).writeMsg(activityJSON);
                 log.info("Broadcast message to server.");
@@ -405,9 +386,6 @@ public class Control extends Thread {
 		return resultJSON.toJSONString();
 	}
 
-    /*
-     * not completed yet
-     */
 	public boolean sendLockRequest(List<Connection> cons, String username, String secret) {
 		JSONObject lockInfo = new JSONObject();
 		lockInfo.put("command", "LOCK_REQUEST");
@@ -526,6 +504,7 @@ public class Control extends Thread {
 
 			}
 			if(connectedServerCount >= 1){
+
 			    try{
                     announce();
                 }
@@ -568,6 +547,7 @@ public class Control extends Thread {
 		    JSONObject authenfailMsg = new JSONObject();
 			authenfailMsg.put("command", "AUTHENTICATION_FAIL");
 			authenfailMsg.put("info", "the supplied secret is incorrect: " + s);
+
 			String authenfailJSON = authenfailMsg.toJSONString();
 			try {
 				con.writeMsg(authenfailJSON);
@@ -578,9 +558,9 @@ public class Control extends Thread {
 		}
 	}
 	
-	public boolean doActivity(){
-		return false;
-	}
+//	public boolean doActivity(){
+//		return false;
+//	}
 	
 	public final void setTerm(boolean t){
 		term=t;

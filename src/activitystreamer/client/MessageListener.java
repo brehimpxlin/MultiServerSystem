@@ -20,7 +20,7 @@ public class MessageListener extends Thread {
 
         try {
 
-//            String command = (String) clientMsg.get("command");
+
             JSONParser parser = new JSONParser();
             String msg = null;
 
@@ -30,8 +30,6 @@ public class MessageListener extends Thread {
                 JSONObject clientMsg = (JSONObject) parser.parse(msg);
                 //Print the messages to the console
 
-//                JSONObject activity = new JSONObject;
-//                TextFrame tf = new TextFrame();
                 TextFrame.setOutputText(clientMsg);
 
 
