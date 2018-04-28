@@ -21,13 +21,13 @@
 #### Server
 First Set up the initiate server. The default local port number is 3780, and the local hostname is "localhost". Secret of the server would be printed in the terminal if secret optional argument has not been set.  
 ```
-java -jar client.jar
+java -jar Server.jar
 ```  
 
 Then, set up other servers connecting to exist server, by setting optional argument. Each server could only connect to ONE other server, in which way the multiserver system would finaly form a tree.
 e.g. set up a second server connected to the initiate server, using the secret printed out by the first server:   
 ```
-java -jar -lp 3781 -rp 3780 -s 7v2t33guvtptiec3297d0vr1cl
+java -jar Server.jar -lp 3781 -rp 3780 -rh localhost -s 7v2t33guvtptiec3297d0vr1cl
 ```  
 
 if all the server has been implemented successfully, each/every the server would receive `SERVER_ANOUNCE` from  all the other sever.
