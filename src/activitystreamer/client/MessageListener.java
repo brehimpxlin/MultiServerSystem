@@ -46,6 +46,10 @@ public class MessageListener extends Thread {
                     this.client.connect();
                     this.client.login(this.client.getUsername(), this.client.getSecret());
                 }
+                if(clientMsg.get("command").equals("AUTHENTICATION_FAIL")){
+                    this.client.disconnect();
+                    TextFrame.setSendButtonStatus(false);
+                }
             }
         } catch (SocketException e) {
             System.out.println("Socket closed because the user typed exit");

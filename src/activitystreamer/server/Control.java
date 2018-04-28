@@ -33,14 +33,14 @@ public class Control extends Thread {
 	private static boolean isRegistering = false;
 	private static Connection requestServer;
 	protected static Control control = null;
-	
+
 	public static Control getInstance() {
 		if(control==null){
 			control=new Control();
-		} 
+		}
 		return control;
 	}
-	
+
 	public Control() {
 		// initialize the connections array
 		connections = new ArrayList<Connection>();
@@ -59,7 +59,7 @@ public class Control extends Thread {
 		}
 		start();
 	}
-	
+
 	public void initiateConnection(){
 		// make a connection to another server if remote hostname is supplied
 		if(Settings.getRemoteHostname()!=null){
@@ -73,6 +73,7 @@ public class Control extends Thread {
 			}
 		}
 	}
+
 
     public boolean checkCon(Connection con, String type){
         switch (type){
@@ -113,8 +114,8 @@ public class Control extends Thread {
 			String secret;
             switch (command){
                 case "LOGIN":
-                    username = (String)clientMsg.get("username");
-                    secret = (String)clientMsg.get("secret");
+					username = (String)clientMsg.get("username");
+					secret = (String)clientMsg.get("secret");
                     JSONObject loginMsg = login(username, secret);
                     con.writeMsg(loginMsg.toJSONString());
                     if(loginMsg.get("command").equals("LOGIN_SUCCESS")){
@@ -235,16 +236,33 @@ public class Control extends Thread {
 
 				case "ACTIVITY_MESSAGE":
 					log.info("Activity message received from client.");
-					broadcastToClient(connections,msg);
-					JSONObject actBroadcast = new JSONObject();
-					actBroadcast.put("command","ACTIVITY_BROADCAST");
-					actBroadcast.put("activity",msg);
-					if (connectedServerCount > 0) {
-						broadcast(connections.subList(0, connectedServerCount), actBroadcast.toJSONString());
+					username = (String)clientMsg.get("username");
+					secret = (String)clientMsg.get("secret");
+					if((username.equals("anonymous")||(username.equals(Settings.getUsername())&&secret.equals(Settings.getSecret())))){
+                        JSONObject actBroadcast = new JSONObject();
+                        actBroadcast.put("command","ACTIVITY_BROADCAST");
+                        actBroadcast.put("activity",msg);
+                        if (connectedServerCount > 0) {
+                            broadcast(connections.subList(0, connectedServerCount), actBroadcast.toJSONString());
+                        }
+                        broadcastToClient(connections,msg);
+
+					}else{
+                        JSONObject authenticationFail = new JSONObject();
+                        authenticationFail.put("command","AUTHENTICATION_FAIL");
+                        if(!username.equals(Settings.getUsername())){
+                            authenticationFail.put("info","the supplied username is incorrect: "+username);
+                        }else if (!secret.equals(Settings.getSecret())){
+                            authenticationFail.put("info","the supplied secret is incorrect: "+secret);
+                        }else{
+                            authenticationFail.put("info","invalid username and secret. ");
+                        }
+                        con.writeMsg(authenticationFail.toString());
 					}
-					break;
+                    break;
 
 				case "ACTIVITY_BROADCAST":
+
                     if(!checkCon(con, "SERVER")){
                         con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
                         con.closeCon();
@@ -253,6 +271,7 @@ public class Control extends Thread {
                     }
 				    log.info("Activity broadcast message received from server." );
 					JSONObject  activityBroadcast = new JSONObject();
+
 					String activityMessage = (String)clientMsg.get("activity");
 					broadcastToServer(con,connections, msg);
 					broadcastToClient(connections,activityMessage);
@@ -430,9 +449,31 @@ public class Control extends Thread {
 		}
 	}
 	//check whether the username and secret matches the user logged in
-	public boolean validUsernameSecret(String username, String secret){
-		return (username.equals(Settings.getUsername()) && secret.equals(Settings.getSecret()));
-	}
+//	public boolean validUsernameSecret(Connection con, String username, String secret){
+//		if (username.equals("anonymous")){
+//			return true;
+//
+//		}else{
+//            JSONObject authenticationFail = new JSONObject();
+//            authenticationFail.put("command","AUTHENTICATION_FAIL");
+//		    if(!username.equals(Settings.getUsername())){
+//                authenticationFail.put("info","the supplied username is incorrect: "+username);
+//            }else if (!secret.equals(Settings.getSecret())){
+//                authenticationFail.put("info","the supplied secret is incorrect: "+secret);
+//            }else{
+//                authenticationFail.put("info","invalid username and secret. ");
+//            }
+//			con.writeMsg(authenticationFail.toString());
+//			return false;
+//		}
+//	}
+
+//	public void sendAuthenticationFailMsg(Connection con){
+//		JSONObject authenticationFailJSON = new JSONObject();
+//		authenticationFailJSON.put("command","");
+//		authenticationFailJSON.put("command","");
+//		con.writeMsg();
+//	}
 
 
 	/*
@@ -521,7 +562,7 @@ public class Control extends Thread {
 	public synchronized void connectionClosed(Connection con){
 		if(!term) connections.remove(con);
 	}
-	
+
 	/*
 	 * A new incoming connection has been established, and a reference is returned to it
 	 */
@@ -541,7 +582,7 @@ public class Control extends Thread {
 		Connection c = new Connection(s);
 		connections.add(c);
 		return c;
-		
+
 	}
 
 	@Override
@@ -579,7 +620,7 @@ public class Control extends Thread {
                 }
 
             }
-			
+
 		}
 		log.info("closing "+connections.size()+" connections");
 		// clean up
@@ -624,15 +665,15 @@ public class Control extends Thread {
 			return false;
 		}
 	}
-	
+
 //	public boolean doActivity(){
 //		return false;
 //	}
-	
+
 	public final void setTerm(boolean t){
 		term=t;
 	}
-	
+
 	public final ArrayList<Connection> getConnections() {
 		return connections;
 	}
