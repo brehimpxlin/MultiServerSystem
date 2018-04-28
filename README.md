@@ -41,6 +41,6 @@ java -jar client.jar -rp 3780 -rh localhost -u Arron
 ```  
 
 When client log in successfully, client can send activity message by typing activity JSON in GUI. Any client connected to the server system would receied the activity message.
-![](/Users/yaozican/Downloads/Screen Shot 2018-04-28 at 3.58.55 pm.PNG)
+![](./activityImage.PNG)
 
  
