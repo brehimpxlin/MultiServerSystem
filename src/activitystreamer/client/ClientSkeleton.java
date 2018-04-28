@@ -66,7 +66,8 @@ public class ClientSkeleton extends Thread {
             open = true;
 			if(socket.isConnected()){
                 log.info("Connection with "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+" successfully established.");
-
+                MessageListener ml = new MessageListener(inreader, clientSolution);
+                ml.start();
             }
             else{
                 log.error("Fail to connect to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+".");
@@ -180,8 +181,7 @@ public class ClientSkeleton extends Thread {
 
         }
 
-        MessageListener ml = new MessageListener(inreader, clientSolution);
-        ml.start();
+
 
 
 

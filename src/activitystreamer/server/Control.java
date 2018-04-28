@@ -1,19 +1,17 @@
 package activitystreamer.server;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.net.Socket;
-import java.util.*;
-
-import activitystreamer.util.FailureController;
-import com.oracle.javafx.jmx.json.JSONException;
+import activitystreamer.util.InvalidMessageProcessor;
+import activitystreamer.util.Settings;
+//import com.oracle.javafx.jmx.json.JSONException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import activitystreamer.util.Settings;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+
+import java.io.IOException;
+import java.net.Socket;
+import java.util.*;
 
 public class Control extends Thread {
 	private static final Logger log = LogManager.getLogger();
@@ -22,7 +20,7 @@ public class Control extends Thread {
 	//Registration is a HashMap containing the username and secret of registered clients.
 	private static Map registration = new HashMap();
     //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
-	private static List<HashMap> serverLoads = new LinkedList<>();
+	private static List<HashMap<String, Integer>> serverLoads = new LinkedList<>();
 	private static String serverID = "server 0";
 	private static boolean term=false;
 	private static Listener listener;
@@ -33,7 +31,6 @@ public class Control extends Thread {
 	private static String clientUsername;
 	private static boolean isRegistering = false;
 	private static Connection requestServer;
-	private static String secret = "fmnmpp3ai91qb3gc2bvs14g3ue";
 
 	protected static Control control = null;
 	
@@ -47,24 +44,24 @@ public class Control extends Thread {
 	public Control() {
 		// initialize the connections array
 		connections = new ArrayList<Connection>();
-
+        if(Settings.getSecret().equals("")){
+            Settings.setSecret(Settings.nextSecret());
+            log.info("Using server secret: "+Settings.getSecret());
+        }
 		// connect to another server when initiate the server
 		// start a listener
 		try {
-			if (connections.isEmpty()) {
+//			if (connections.isEmpty()) {
                 initiateConnection();
-                if(!connections.isEmpty()) {
-                	connectedServerCount += 1;
+//                if(!connections.isEmpty()) {
+
                 /*
 				 * sending authentication here
 				 * connections.get(0).writeMsg();
 				 */
 
-					String serverSecret = Settings.getSecret();
-                	sendAu(connections.get(0), serverSecret);
-                	serverID = "server "+ connectedServerCount;
-                }
-			}
+//                }
+//			}
 			listener = new Listener();
 		} catch (IOException e1) {
 			log.fatal("failed to startup a listening thread: "+e1);
@@ -78,6 +75,8 @@ public class Control extends Thread {
 		if(Settings.getRemoteHostname()!=null){
 			try {
 				outgoingConnection(new Socket(Settings.getRemoteHostname(),Settings.getRemotePort()));
+
+
 			} catch (IOException e) {
 				log.error("failed to make connection to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+" :"+e);
 				System.exit(-1);
@@ -95,16 +94,14 @@ public class Control extends Thread {
         JSONParser parser = new JSONParser();
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
-            String command = (String) clientMsg.get("command");
-            if (command == null) {
-                FailureController.sendInvalidInfoObj(con, "NO_COMMAND");
+            if(!clientMsg.containsKey("command")){
+                con.writeMsg(InvalidMessageProcessor.invalidInfo("NO_COMMAND"));
                 return false;
             }
+            String command = (String) clientMsg.get("command");
 			String username;
 			String secret;
             switch (command){
-//				String username = (String)clientMsg.get("username");
-//				String secret = (String) clientMsg.get("secret");
                 case "LOGIN":
                     username = (String)clientMsg.get("username");
                     secret = (String)clientMsg.get("secret");
@@ -114,6 +111,7 @@ public class Control extends Thread {
                         log.info("A user has logged in: "+username);
                         //Do redirect.
                         if(serverLoads != null && serverLoads.size() > 0){
+                            log.info("Number of connected server: "+connectedServerCount);
                             JSONObject redirMsg = redirect();
                             if(redirMsg.containsKey("hostname")){
                                 con.writeMsg(redirMsg.toJSONString());
@@ -138,16 +136,17 @@ public class Control extends Thread {
 
                 case "AUTHENTICATE":
                     // do authenticate here
-					if(doAu(con,this.secret)){
+					if(doAu(con,(String)clientMsg.get("secret"))){
                         connectedServerCount += 1;
 					}else{
 					    con.closeCon();
+					    connectionClosed(con);
 					}
                     break;
 
                 case "LOCK_REQUEST":
                     username = (String)clientMsg.get("username");
-                    secret = (String) clientMsg.get("secret");
+                    secret = (String)clientMsg.get("secret");
                     if (connectedServerCount <= 1 && registration.containsKey(username)) {
 						sendLockResult(con, username, secret, false);
 						log.info("Lock denied");
@@ -193,6 +192,7 @@ public class Control extends Thread {
 						broadcastLockDenied(con, username, secret);
                     	//requestServer.writeMsg(registerSuccess(clientUsername, false));
 					}
+					break;
 
 				case "ACTIVITY_MESSAGE":
 //					String activity = (String) clientMsg.get("activity");
@@ -253,20 +253,31 @@ public class Control extends Thread {
                         broadcast(forwardServers, msg);
 
                     } catch (Exception e){
-                        JSONObject invalidMsg = new JSONObject();
-                        invalidMsg.put("command", "INVALID_MESSAGE");
-                        con.writeMsg(invalidMsg.toJSONString());
-                          log.info(e);
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("JSON_PARSE_ERROR"));
+                        return false;
                     }
                     break;
 
+                case "AUTHENTICATION_FAIL":
+                    connectedServerCount = connectedServerCount - 1;
+                    con.closeCon();
+                    connectionClosed(con);
+                    this.setTerm(true);
+                    System.exit(0);
+                    break;
+
+                case "INVALID_MESSAGE":
+                    break;
 
 				default:
+                    con.writeMsg(InvalidMessageProcessor.invalidInfo("UNKNOWN_COMMAND"));
 					break;
             }
-        } catch (JSONException | ClassCastException | ParseException e) {
-            FailureController.sendInvalidInfoObj(con, "JSON_PARSE_ERROR");
-        } catch (Exception e){
+        }
+        catch (ClassCastException | ParseException e) {
+            con.writeMsg(InvalidMessageProcessor.invalidInfo("JSON_PARSE_ERROR"));
+        }
+        catch (Exception e){
             e.printStackTrace();
         }
 
@@ -289,7 +300,6 @@ public class Control extends Thread {
             }
             else {
                 loginResult.put("command", "LOGIN_FAILED");
-                log.info("test----- ");
                 loginResult.put("info", "Username and secret do not match. secret: "+secret);
                 log.info(username+" "+secret);
 			}
@@ -309,8 +319,9 @@ public class Control extends Thread {
         JSONObject redirMsg = new JSONObject();
 
         for(HashMap server : serverLoads){
-            if(this.getConnections().size() - connectedServerCount - serverLoads.size() >= 2){
-                log.info(this.getConnections().size()+", "+ connectedServerCount);
+
+            if(this.getConnections().size() - connectedServerCount - (long)server.get("load") >= 2){
+//                log.info(this.getConnections().size()+", "+ connectedServerCount);
                 String redirHost = server.get("hostname").toString();
                 String redirPort = server.get("port").toString();
                 redirMsg.put("command", "REDIRECT");
@@ -490,11 +501,15 @@ public class Control extends Thread {
 		
 	}
 
-	
-	
 	@Override
 	public void run(){
-		log.info("using activity interval of "+Settings.getActivityInterval()+" milliseconds");
+        if(Settings.getRemoteHostname() != null){
+            String serverSecret = Settings.getSecret();
+            sendAu(connections.get(0), serverSecret);
+            serverID = Settings.nextSecret();
+            connectedServerCount += 1;
+        }
+	    log.info("using activity interval of "+Settings.getActivityInterval()+" milliseconds");
 		while(!term){
 			// do something with 5 second intervals in between
 			try {
@@ -506,9 +521,19 @@ public class Control extends Thread {
 			if(!term){
 //				log.debug("doing activity");
 //				term=doActivity();
+
+
+
 			}
 			if(connectedServerCount >= 1){
-			    announce();
+			    try{
+                    announce();
+                }
+                catch (Exception e){
+			        log.error("A server has quited accidentally. System failed.");
+			        System.exit(-1);
+                }
+
             }
 			
 		}
@@ -518,6 +543,7 @@ public class Control extends Thread {
 			connection.closeCon();
 		}
 		listener.setTerm(true);
+
 	}
 
 	public void sendAu(Connection con, String secret) {
@@ -535,12 +561,13 @@ public class Control extends Thread {
 
 
 	public boolean doAu(Connection con, String s) {
-		if (s.equals(secret)) {
+		if (s.equals(Settings.getSecret())) {
 			return true;
 		} else {
-			JSONObject authenfailMsg = new JSONObject();
+
+		    JSONObject authenfailMsg = new JSONObject();
 			authenfailMsg.put("command", "AUTHENTICATION_FAIL");
-			authenfailMsg.put("info", "the supplied secret is incorrect: " + secret);
+			authenfailMsg.put("info", "the supplied secret is incorrect: " + s);
 			String authenfailJSON = authenfailMsg.toJSONString();
 			try {
 				con.writeMsg(authenfailJSON);

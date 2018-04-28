@@ -1,12 +1,9 @@
 package activitystreamer.client;
 import java.io.BufferedReader;
 import java.net.SocketException;
-import activitystreamer.client.TextFrame;
-import activitystreamer.util.FailureController;
-import com.google.gson.JsonParser;
+import activitystreamer.util.InvalidMessageProcessor;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import activitystreamer.client.ClientSkeleton;
 import activitystreamer.util.Settings;
 
 public class MessageListener extends Thread {
@@ -26,20 +23,20 @@ public class MessageListener extends Thread {
 //            String command = (String) clientMsg.get("command");
             JSONParser parser = new JSONParser();
             String msg = null;
+
             //Read messages from the server while the end of the stream is not reached
             while((msg = reader.readLine()) != null) {
+                System.out.println(msg);
                 JSONObject clientMsg = (JSONObject) parser.parse(msg);
                 //Print the messages to the console
-                System.out.println(msg);
+
 //                JSONObject activity = new JSONObject;
 //                TextFrame tf = new TextFrame();
                 TextFrame.setOutputText(clientMsg);
-                String command  = (String) clientMsg.get("command");
 
-                if (command == null) {
-                    /**
-                     * NO_COMMAND INVALID_MESSAGE SENT
-                     */
+
+                if(!clientMsg.containsKey("command")){
+                    this.client.writeMsg(InvalidMessageProcessor.invalidInfo("NO_COMMAND"));
                 }
 
                 if(clientMsg.get("command").equals("REGISTER_SUCCESS")){
@@ -49,6 +46,7 @@ public class MessageListener extends Thread {
                     Settings.setRemoteHostname((String)clientMsg.get("hostname"));
                     Settings.setRemotePort(new Integer((String) clientMsg.get("port")));
                     this.client.connect();
+                    this.client.login(this.client.getUsername(), this.client.getSecret());
                 }
             }
         } catch (SocketException e) {
