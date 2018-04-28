@@ -36,13 +36,13 @@
 
 ## Assignment of tasks to individuals in the group 
 
-Register/GUI/ - ZICAN YAO
+Register - ZICAN YAO
 
-Login / redirect / - PEIXIN LIN
+Login / redirect / server_anncounce - PEIXIN LIN
 
 Activity - ~~WEIREN CHEN~~ MINGCHI ZHANG
 
-server_anncounce / Authentication / ~~Interaction / Integration~~ - ~~MINGCHI ZHANG~~ WEIREN CHEN
+Authentication / ~~Interaction / Integration~~ - ~~MINGCHI ZHANG~~ WEIREN CHEN
 
 
 
