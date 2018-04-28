@@ -1,7 +1,10 @@
 package activitystreamer.client;
 import java.io.BufferedReader;
 import java.net.SocketException;
+import java.util.logging.Logger;
+
 import activitystreamer.util.InvalidMessageProcessor;
+import org.apache.logging.log4j.LogManager;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import activitystreamer.util.Settings;
@@ -9,6 +12,7 @@ import activitystreamer.util.Settings;
 public class MessageListener extends Thread {
     private BufferedReader reader;
     private ClientSkeleton client;
+    private static final org.apache.logging.log4j.Logger log = LogManager.getLogger();
     public MessageListener(BufferedReader reader, ClientSkeleton client ) {
         this.client = client;
         this.reader = reader;
@@ -26,7 +30,7 @@ public class MessageListener extends Thread {
 
             //Read messages from the server while the end of the stream is not reached
             while((msg = reader.readLine()) != null) {
-                System.out.println(msg);
+                log.info("Receive message: " + msg);
                 JSONObject clientMsg = (JSONObject) parser.parse(msg);
                 //Print the messages to the console
 
