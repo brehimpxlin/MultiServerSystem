@@ -37,7 +37,7 @@ ATTENTION: This multiserver system assumed that servers never crash once started
 #### Client
 Once the server system has been implemented, client could connected to any server. if no username and secret offered, client would log in as annonymous. if only username offered without secret, system would register for this username and generate a new secret which would be printed in the terminal. 
 ```
-java -jar client.jar -rp 3780 -rh localhost -u Arron
+java -jar client.jar -rp 3780 -rh localhost -u Aaron
 ```  
 
 When client log in successfully, client can send activity message by typing activity JSON in GUI. Any client connected to the server system would receied the activity message.
