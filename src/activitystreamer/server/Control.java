@@ -5,6 +5,8 @@ import java.io.Serializable;
 import java.net.Socket;
 import java.util.*;
 
+import activitystreamer.util.FailureController;
+import com.oracle.javafx.jmx.json.JSONException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,7 +33,8 @@ public class Control extends Thread {
 	private static String clientUsername;
 	private static boolean isRegistering = false;
 	private static Connection requestServer;
-	private static String secret = "fmnmpp3ai91qb3gc2bvs14g3ue";
+	//private static String secret = "fmnmpp3ai91qb3gc2bvs14g3ue";
+	private static String serverSecret;
 
 	protected static Control control = null;
 	
@@ -94,6 +97,10 @@ public class Control extends Thread {
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
             String command = (String) clientMsg.get("command");
+            if (command == null) {
+                FailureController.sendInvalidInfoObj(con, "NO_COMMAND");
+                return false;
+            }
 			String username;
 			String secret;
             switch (command){
@@ -132,7 +139,8 @@ public class Control extends Thread {
 
                 case "AUTHENTICATE":
                     // do authenticate here
-					if(doAu(con,this.secret)){
+					serverSecret = (String)clientMsg.get("secret");
+					if(doAu(con,serverSecret)){
                         connectedServerCount += 1;
 					}else{
 					    con.closeCon();
@@ -246,8 +254,7 @@ public class Control extends Thread {
                         forwardServers.remove(con);
                         broadcast(forwardServers, msg);
 
-                    }
-                    catch (Exception e){
+                    } catch (Exception e){
                         JSONObject invalidMsg = new JSONObject();
                         invalidMsg.put("command", "INVALID_MESSAGE");
                         con.writeMsg(invalidMsg.toJSONString());
@@ -268,11 +275,11 @@ public class Control extends Thread {
 //					con.closeCon();
 					break;
 				default:
-
 					break;
             }
-        }
-        catch (Exception e){
+        } catch (JSONException | ClassCastException | ParseException e) {
+            FailureController.sendInvalidInfoObj(con, "JSON_PARSE_ERROR");
+        } catch (Exception e){
             e.printStackTrace();
         }
 
@@ -295,7 +302,8 @@ public class Control extends Thread {
             }
             else {
                 loginResult.put("command", "LOGIN_FAILED");
-                loginResult.put("info", "Username and secret do not match.");
+                log.info("test----- ");
+                loginResult.put("info", "Username and secret do not match. secret: "+secret);
                 log.info(username+" "+secret);
 			}
         }
@@ -342,7 +350,7 @@ public class Control extends Thread {
 			con.writeMsg(registerSuccess(username,false));
             return false;
 		} else if (connectedServerCount > 0) {
-		       sendLockRequest(connections.subList(0, connectedServerCount), username, username);
+		       sendLockRequest(connections.subList(0, connectedServerCount), username, secret);
 		       log.info("test: " + connections.subList(0,connectedServerCount));
 		       registerClient = con;
 		       clientUsername = username;
@@ -513,7 +521,7 @@ public class Control extends Thread {
 //				term=doActivity();
 			}
 			if(connectedServerCount >= 1){
-			    announce();
+//			    announce();
             }
 			
 		}
@@ -540,12 +548,12 @@ public class Control extends Thread {
 
 
 	public boolean doAu(Connection con, String s) {
-		if (s.equals(secret)) {
+		if (s.equals("fmnmpp3ai91qb3gc2bvs14g3ue")) {
 			return true;
 		} else {
 			JSONObject authenfailMsg = new JSONObject();
 			authenfailMsg.put("command", "AUTHENTICATION_FAIL");
-			authenfailMsg.put("info", "the supplied secret is incorrect: " + secret);
+			authenfailMsg.put("info", "the supplied secret is incorrect: " + serverSecret);
 			String authenfailJSON = authenfailMsg.toJSONString();
 			try {
 				con.writeMsg(authenfailJSON);

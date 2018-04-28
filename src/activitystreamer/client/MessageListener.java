@@ -2,6 +2,7 @@ package activitystreamer.client;
 import java.io.BufferedReader;
 import java.net.SocketException;
 import activitystreamer.client.TextFrame;
+import activitystreamer.util.FailureController;
 import com.google.gson.JsonParser;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -33,17 +34,22 @@ public class MessageListener extends Thread {
 //                JSONObject activity = new JSONObject;
 //                TextFrame tf = new TextFrame();
                 TextFrame.setOutputText(clientMsg);
+                String command  = (String) clientMsg.get("command");
+
+                if (command == null) {
+                    /**
+                     * NO_COMMAND INVALID_MESSAGE SENT
+                     */
+                }
 
                 if(clientMsg.get("command").equals("REGISTER_SUCCESS")){
-                    this.client.login(Settings.getUsername(), Settings.getSecret());
+                    this.client.login(this.client.getUsername(), this.client.getSecret());
                 }
                 if(clientMsg.get("command").equals("REDIRECT")){
                     Settings.setRemoteHostname((String)clientMsg.get("hostname"));
                     Settings.setRemotePort(new Integer((String) clientMsg.get("port")));
                     this.client.connect();
-
                 }
-
             }
         } catch (SocketException e) {
             System.out.println("Socket closed because the user typed exit");
