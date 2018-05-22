@@ -2,6 +2,9 @@ package activitystreamer.client;
 import java.io.*;
 import java.net.Socket;
 import java.util.Random;
+
+import activitystreamer.server.Connection;
+import activitystreamer.server.Control;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.simple.JSONObject;
@@ -63,7 +66,8 @@ public class ClientSkeleton extends Thread {
             open = true;
 			if(socket.isConnected()){
                 log.info("Connection with "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+" successfully established.");
-
+                MessageListener ml = new MessageListener(inreader, clientSolution);
+                ml.start();
             }
             else{
                 log.error("Fail to connect to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+".");
@@ -107,11 +111,12 @@ public class ClientSkeleton extends Thread {
             e.printStackTrace();
         }
     }
+    
     public void sendActivityObject(JSONObject activityObj){
         JSONObject activity = new JSONObject();
         activity.put("command", "ACTIVITY_MESSAGE");
         activity.put("username", Settings.getUsername());
-        activity.put("secret", Settings.getSecret());
+//        activity.put("username","test");
         activity.put("activity",activityObj.toString());
         String activityJSON = activity.toJSONString();
         try{
@@ -125,7 +130,18 @@ public class ClientSkeleton extends Thread {
 
 
 	public void disconnect(){
-		
+//        Connection.
+        log.debug("connection closed to "+Settings.socketAddress(socket));
+        JSONObject disconnectOBJ = new JSONObject();
+        disconnectOBJ.put("command", "LOGOUT");
+        try {
+            writeMsg(disconnectOBJ.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+
 	}
 	public boolean isConnected(){
 	    return this.socket.isConnected();
@@ -146,17 +162,17 @@ public class ClientSkeleton extends Thread {
                 login(username, secret);
             }
             else{
-                Random random = new Random();
-                secret =  "" + (random.nextLong() * 100000);
-                System.out.println("Try to login using username: "+username+" and secret: "+secret);
+                this.secret =  Settings.nextSecret();
+                Settings.setSecret(this.secret);
                 register(username, secret);
+                System.out.println("Try to login using username: "+username+" and secret: "+secret);
+
 
             }
 
         }
 
-        MessageListener ml = new MessageListener(inreader, clientSolution);
-        ml.start();
+
 
 
 

@@ -30,8 +30,9 @@ public class TextFrame extends JFrame implements ActionListener {
 	private static final Logger log = LogManager.getLogger();
 	private JTextArea inputText;
 	private static JTextArea outputText;
-	private JButton sendButton;
+	private static JButton sendButton;
 	private JButton disconnectButton;
+	private JButton clearButton;
 	private JSONParser parser = new JSONParser();
 	
 	public TextFrame(){
@@ -65,13 +66,23 @@ public class TextFrame extends JFrame implements ActionListener {
 		outputText = new JTextArea();
 		scrollPane = new JScrollPane(outputText);
 		outputPanel.add(scrollPane,BorderLayout.CENTER);
+
+		JPanel buttonGroup1 = new JPanel();
+		clearButton = new JButton("Clear");
+//		disconnectButton = new JButton("Disconnect");
+		buttonGroup1.add(clearButton);
+		outputPanel.add(buttonGroup1,BorderLayout.SOUTH);
+		clearButton.addActionListener(this);
+//		disconnectButton.addActionListener(this);
+
 		
 		mainPanel.add(inputPanel);
 		mainPanel.add(outputPanel);
 		add(mainPanel);
 		
 		setLocationRelativeTo(null); 
-		setSize(1280,768);
+//		setSize(1280,768);
+		setSize(800,600);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setVisible(true);
 	}
@@ -80,28 +91,53 @@ public class TextFrame extends JFrame implements ActionListener {
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		JsonParser jp = new JsonParser();
 		JsonElement je = jp.parse(obj.toJSONString());
-		String prettyJsonString = gson.toJson(je);
+		String prettyJsonString = gson.toJson(je).replaceAll("\\\\","");
 //		outputText.setText(prettyJsonString);
+
 		outputText.append(prettyJsonString);
 		outputText.append("\n");
 		outputText.revalidate();
 		outputText.repaint();
 	}
-	
+
+	public static void setSendButtonStatus(Boolean b){
+	    sendButton.setEnabled(b);
+    }
+
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		if(e.getSource()==sendButton){
 			String msg = inputText.getText().trim().replaceAll("\r","").replaceAll("\n","").replaceAll("\t", "");
 			JSONObject obj;
 			try {
+
 				obj = (JSONObject) parser.parse(msg);
 				ClientSkeleton.getInstance().sendActivityObject(obj);
+
 			} catch (ParseException e1) {
+//                ClientSkeleton.getInstance().sendInvalidInfoObj("JSON_PARSE_ERROR");
 				log.error("invalid JSON object entered into input text field, data not sent");
+				JSONObject errorObj = new JSONObject();
+				errorObj.put("command", "INVALID_MESSAGE");
+				errorObj.put("info", "JSON parse error while parsing message, connection closed.");
+				setOutputText(errorObj);
+				ClientSkeleton.getInstance().disconnect();
+//				System.exit(0);
+//				inputText.setText("");
+//				outputText.setEditable(false);
+//				inputText.setEditable(false);
+				sendButton.setEnabled(false);
+//				System.slsleep()
+
 			}
 			
 		} else if(e.getSource()==disconnectButton){
 			ClientSkeleton.getInstance().disconnect();
+			setVisible(false);
+			System.exit(0);
+//			this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		} else if(e.getSource()==clearButton){
+			outputText.setText("");
 		}
 	}
 }

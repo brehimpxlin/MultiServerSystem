@@ -73,6 +73,7 @@ public class Connection extends Thread {
               * !!!!! logic for while loop has been changed here, may be wrong
               */
 			while((data = inreader.readLine())!=null || !term){
+				log.info("Receive message: " + data);
 				term=Control.getInstance().process(this,data);
 			}
 			log.debug("connection closed to "+Settings.socketAddress(socket));

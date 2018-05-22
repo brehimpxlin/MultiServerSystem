@@ -1,66 +1,57 @@
 package activitystreamer.server;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import activitystreamer.util.InvalidMessageProcessor;
+import activitystreamer.util.Settings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import activitystreamer.util.Settings;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import java.io.IOException;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.util.*;
+
 public class Control extends Thread {
 	private static final Logger log = LogManager.getLogger();
 	private static ArrayList<Connection> connections;
+	private static ArrayList<Connection> templist;
 	//Registration is a HashMap containing the username and secret of registered clients.
 	private static Map registration = new HashMap();
     //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
-	private static List<HashMap> serverLoads;
+	private static List<HashMap<String, Integer>> serverLoads = new LinkedList<>();
+	private static List<SocketAddress> serverList = new LinkedList<>();
+    private static List<SocketAddress> clientList = new LinkedList<>();
 	private static String serverID = "server 0";
 	private static boolean term=false;
 	private static Listener listener;
-	private static ServerConnecter serverConnecter;
 	private static int connectedServerCount = 0;
 	private static int lockAllowedCount = 0;
 	private static Connection registerClient;
 	private static String clientUsername;
 	private static boolean isRegistering = false;
 	private static Connection requestServer;
-
-
 	protected static Control control = null;
-	
+
 	public static Control getInstance() {
 		if(control==null){
 			control=new Control();
-		} 
+		}
 		return control;
 	}
-	
+
 	public Control() {
 		// initialize the connections array
 		connections = new ArrayList<Connection>();
-
+        if(Settings.getSecret().equals("")){
+            Settings.setSecret(Settings.nextSecret());
+            log.info("Using server secret: "+Settings.getSecret());
+        }
 		// connect to another server when initiate the server
 		// start a listener
 		try {
-			if (connections.isEmpty()) {
-                initiateConnection();
-                if(!connections.isEmpty()) {
-                /*
-				 * sending authentication here
-				 * connections.get(0).writeMsg();
-				 */
-                    connectedServerCount += 1;
-                    serverID = "server "+connectedServerCount;
-                }
-			}
+            initiateConnection();
 			listener = new Listener();
 		} catch (IOException e1) {
 			log.fatal("failed to startup a listening thread: "+e1);
@@ -68,52 +59,81 @@ public class Control extends Thread {
 		}
 		start();
 	}
-	
+
 	public void initiateConnection(){
 		// make a connection to another server if remote hostname is supplied
 		if(Settings.getRemoteHostname()!=null){
 			try {
 				outgoingConnection(new Socket(Settings.getRemoteHostname(),Settings.getRemotePort()));
+
+
 			} catch (IOException e) {
 				log.error("failed to make connection to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+" :"+e);
 				System.exit(-1);
 			}
 		}
 	}
-	
+
+
+    public boolean checkCon(Connection con, String type){
+        switch (type){
+            case "SERVER":
+                for(SocketAddress server: serverList){
+                    if(server.equals(con.getSocket().getRemoteSocketAddress())){
+                        return true;
+                    }
+                }
+                break;
+
+            case "CLIENT":
+                for(SocketAddress client: clientList){
+                    if(client.equals(con.getSocket().getRemoteSocketAddress())){
+                        return true;
+                    }
+                }
+                break;
+        }
+        return false;
+    }
+
 	/*
 	 * Processing incoming messages from the connection.
 	 * Return true if the connection should close.
 	 */
 	public synchronized boolean process(Connection con,String msg){
 
-//		System.out.println(msg);
         JSONParser parser = new JSONParser();
 	    try{
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
+            if(!clientMsg.containsKey("command")){
+                con.writeMsg(InvalidMessageProcessor.invalidInfo("NO_COMMAND"));
+                return false;
+            }
             String command = (String) clientMsg.get("command");
 			String username;
 			String secret;
             switch (command){
-//				String username = (String)clientMsg.get("username");
-//				String secret = (String) clientMsg.get("secret");
                 case "LOGIN":
-                    username = (String)clientMsg.get("username");
-                    secret = (String) clientMsg.get("secret");
+					username = (String)clientMsg.get("username");
+					secret = (String)clientMsg.get("secret");
                     JSONObject loginMsg = login(username, secret);
                     con.writeMsg(loginMsg.toJSONString());
                     if(loginMsg.get("command").equals("LOGIN_SUCCESS")){
                         log.info("A user has logged in: "+username);
                         //Do redirect.
+
                         if(serverLoads != null && serverLoads.size() > 0){
+                            log.info("Number of connected server: "+connectedServerCount);
                             JSONObject redirMsg = redirect();
                             if(redirMsg.containsKey("hostname")){
                                 con.writeMsg(redirMsg.toJSONString());
                                 log.info("Redirect user "+username+" to "+redirMsg.get("hostname")+":"+redirMsg.get("port")+".");
                                 con.closeCon();
                                 connectionClosed(con);
+                                break;
                             }
                         }
+                        clientList.add(con.getSocket().getRemoteSocketAddress());
                     }
                     else {
                         con.closeCon();
@@ -122,7 +142,13 @@ public class Control extends Thread {
                     break;
 
 				case "REGISTER":
-                    username = (String)clientMsg.get("username");
+				    if(checkCon(con, "CLIENT")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("REGISTER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
+				    username = (String)clientMsg.get("username");
                     secret = (String) clientMsg.get("secret");
 				    isRegistering = doRegister(con,username,secret);
 					log.info("register for " + username);
@@ -130,14 +156,25 @@ public class Control extends Thread {
 
                 case "AUTHENTICATE":
                     // do authenticate here
-                    connectedServerCount += 1;
 
-
+					if(doAu(con,(String)clientMsg.get("secret"))){
+                        connectedServerCount += 1;
+                        serverList.add(con.getSocket().getRemoteSocketAddress());
+					}else{
+					    con.closeCon();
+					    connectionClosed(con);
+					}
                     break;
 
                 case "LOCK_REQUEST":
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
                     username = (String)clientMsg.get("username");
-                    secret = (String) clientMsg.get("secret");
+                    secret = (String)clientMsg.get("secret");
                     if (connectedServerCount <= 1 && registration.containsKey(username)) {
 						sendLockResult(con, username, secret, false);
 						log.info("Lock denied");
@@ -148,13 +185,19 @@ public class Control extends Thread {
                     } else {
                     	log.info(connectedServerCount);
                         requestServer = con;
-                        List<Connection> otherServers = connections.subList(0,connectedServerCount);
+                        List<Connection> otherServers = new ArrayList<>(connections.subList(0,connectedServerCount));
                         otherServers.remove(con);
                         sendLockRequest(otherServers, username, secret);
                     }
 					break;
 
                 case "LOCK_ALLOWED":
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
                     username = (String)clientMsg.get("username");
                     secret = (String) clientMsg.get("secret");
                     lockAllowedCount += 1;
@@ -163,12 +206,19 @@ public class Control extends Thread {
                         registration.put(username,secret);
                         lockAllowedCount = 0;
                     } else if (!isRegistering && lockAllowedCount == connectedServerCount - 1){
-						requestServer.writeMsg(registerSuccess(clientUsername, true));
+						sendLockResult(requestServer, username, secret, true);
 						registration.put(username,secret);
+						lockAllowedCount = 0;
                     }
                     break;
 
                 case "LOCK_DENIED":
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
                     username = (String)clientMsg.get("username");
                     secret = (String) clientMsg.get("secret");
                     if (isRegistering) {
@@ -177,67 +227,126 @@ public class Control extends Thread {
 					} else {
 						if (registration.containsKey(username) && registration.containsValue(secret)) {
 							registration.remove(username, secret);
+							lockAllowedCount = 0;
 						}
 						broadcastLockDenied(con, username, secret);
                     	//requestServer.writeMsg(registerSuccess(clientUsername, false));
 					}
+					break;
 
 				case "ACTIVITY_MESSAGE":
-//					String activity = (String) clientMsg.get("activity");
-//					System.out.println("+++++++"+msg);
-					log.info("Received activity message from: " + Settings.getRemoteHostname()+":"+Settings.getRemotePort());
-					broadcastToClient(msg);
-					JSONObject actBroadcast = new JSONObject();
-					actBroadcast.put("command","ACTIVITY_BROADCAST");
-					actBroadcast.put("activity",msg);
-					broadcastToServer(actBroadcast.toJSONString());
-					break;
+					log.info("Activity message received from client.");
+					username = (String)clientMsg.get("username");
+					secret = (String)clientMsg.get("secret");
+					if((username.equals("anonymous")||(username.equals(Settings.getUsername())&&secret.equals(Settings.getSecret())))){
+                        JSONObject actBroadcast = new JSONObject();
+                        actBroadcast.put("command","ACTIVITY_BROADCAST");
+                        actBroadcast.put("activity",msg);
+                        if (connectedServerCount > 0) {
+                            broadcast(connections.subList(0, connectedServerCount), actBroadcast.toJSONString());
+                        }
+                        broadcastToClient(connections,msg);
+
+					}else{
+                        JSONObject authenticationFail = new JSONObject();
+                        authenticationFail.put("command","AUTHENTICATION_FAIL");
+                        if(!username.equals(Settings.getUsername())){
+                            authenticationFail.put("info","the supplied username is incorrect: "+username);
+                        }else if (!secret.equals(Settings.getSecret())){
+                            authenticationFail.put("info","the supplied secret is incorrect: "+secret);
+                        }else{
+                            authenticationFail.put("info","invalid username and secret. ");
+                        }
+                        con.writeMsg(authenticationFail.toString());
+					}
+                    break;
+
 				case "ACTIVITY_BROADCAST":
-					log.info("Received activity broadcast message from server: " + Settings.getRemoteHostname()+":"+Settings.getRemotePort());
-					JSONObject  activityBroadcast= new JSONObject();
-					JSONObject actObject = (JSONObject) activityBroadcast.get("activity");
-					broadcastToClient(actObject.toJSONString());
+
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
+				    log.info("Activity broadcast message received from server." );
+					JSONObject  activityBroadcast = new JSONObject();
+
+					String activityMessage = (String)clientMsg.get("activity");
+					broadcastToServer(con,connections, msg);
+					broadcastToClient(connections,activityMessage);
 					break;
-
-
 
 				//When a SERVER_ANNOUNCE message is received, update the serverLoads according to the message.
                 case "SERVER_ANNOUNCE":
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
                     try{
                         JSONObject announceInfo = (JSONObject) parser.parse(msg);
                         //Iterate the serverLoads to check if the message is from a known server.
                         //If there was, update the existing one.
-                        for(HashMap server: serverLoads){
-
-                            if(server.get("serverID").equals(announceInfo.get("serverID"))){
-                                server.put("load", announceInfo.get("load"));
-                                break;
+                        boolean isNewServer = true;
+                        if(serverLoads.size() > 0){
+                            for(HashMap server: serverLoads){
+                                if(server.get("id").equals(announceInfo.get("id"))){
+                                    server.put("load", announceInfo.get("load"));
+                                    isNewServer = false;
+                                    break;
+                                }
                             }
+
                         }
+
                         //If no known server was found, add a new HashMap to serverLoads for the new server.
-                        HashMap newServer = new HashMap();
-                        newServer.put("serverID", announceInfo.get("serverID"));
-						newServer.put("hostname", announceInfo.get("hostname"));
-						newServer.put("port", announceInfo.get("port"));
-						newServer.put("load", announceInfo.get("load"));
-						this.serverLoads.add(newServer);
-						//Forward this message to other server.
-                        List<Connection> forwardServers = connections.subList(0,connectedServerCount);
+                        if(isNewServer == true){
+                            HashMap newServer = new HashMap();
+                            newServer.put("id", announceInfo.get("id"));
+                            newServer.put("hostname", announceInfo.get("hostname"));
+                            newServer.put("port", announceInfo.get("port"));
+                            newServer.put("load", announceInfo.get("load"));
+                            this.serverLoads.add(newServer);
+
+                        }
+                        //Forward this message to other server.
+                        List<Connection> forwardServers = new ArrayList<>(connections.subList(0,connectedServerCount));
                         forwardServers.remove(con);
                         broadcast(forwardServers, msg);
 
-                    }
-                    catch (Exception e){
-                        JSONObject invalidMsg = new JSONObject();
-                        invalidMsg.put("command", "INVALID_MESSAGE");
-                        con.writeMsg(invalidMsg.toJSONString());
+                    } catch (Exception e){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("JSON_PARSE_ERROR"));
+                        return false;
                     }
                     break;
 
 
+                case "AUTHENTICATION_FAIL":
+                    connectedServerCount = connectedServerCount - 1;
+                    con.closeCon();
+                    connectionClosed(con);
+                    this.setTerm(true);
+                    System.exit(0);
+                    break;
+
+                case "INVALID_MESSAGE":
+                    break;
+
+
+				case "LOGOUT":
+					clientList.remove(con.getSocket().getRemoteSocketAddress());
+				    connections.remove(con);
+					break;
+
 				default:
+                    con.writeMsg(InvalidMessageProcessor.invalidInfo("UNKNOWN_COMMAND"));
 					break;
             }
+        }
+        catch (ClassCastException | ParseException e) {
+            con.writeMsg(InvalidMessageProcessor.invalidInfo("JSON_PARSE_ERROR"));
         }
         catch (Exception e){
             e.printStackTrace();
@@ -262,7 +371,7 @@ public class Control extends Thread {
             }
             else {
                 loginResult.put("command", "LOGIN_FAILED");
-                loginResult.put("info", "Username and secret do not match.");
+                loginResult.put("info", "Username and secret do not match. secret: "+secret);
                 log.info(username+" "+secret);
 			}
         }
@@ -272,8 +381,6 @@ public class Control extends Thread {
         }
 	    return loginResult;
     }
-
-
     /*
      * Check load balance and redirect users if there is a need.
      * Iterate the serverLoads to find if there is a server with a load which is at least 2 clients less than the current one.
@@ -283,8 +390,9 @@ public class Control extends Thread {
         JSONObject redirMsg = new JSONObject();
 
         for(HashMap server : serverLoads){
-            if(this.getConnections().size() - connectedServerCount - serverLoads.size() >= 2){
 
+            if(this.getConnections().size() - connectedServerCount - (long)server.get("load") >= 2){
+//                log.info(this.getConnections().size()+", "+ connectedServerCount);
                 String redirHost = server.get("hostname").toString();
                 String redirPort = server.get("port").toString();
                 redirMsg.put("command", "REDIRECT");
@@ -311,7 +419,7 @@ public class Control extends Thread {
 			con.writeMsg(registerSuccess(username,false));
             return false;
 		} else if (connectedServerCount > 0) {
-		       sendLockRequest(connections.subList(0, connectedServerCount), username, username);
+		       sendLockRequest(connections.subList(0, connectedServerCount), username, secret);
 		       log.info("test: " + connections.subList(0,connectedServerCount));
 		       registerClient = con;
 		       clientUsername = username;
@@ -322,55 +430,51 @@ public class Control extends Thread {
 		    return false;
 		}
 	}
-	public synchronized void broadcastToClient(String activityJSON){
+	public synchronized void broadcastToClient(ArrayList<Connection> connections, String activityJSON){
 		for(int i = connectedServerCount;i<connections.size();i++){
 			connections.get(i).writeMsg(activityJSON);
-			log.info("Broadcast message to client: " + Settings.getRemoteHostname()+":"+Settings.getRemotePort());
+			log.info("Activity message broadcast to client.");
 		}
-	}public synchronized void broadcastToServer(String activityJSON){
-		if(connectedServerCount>0){
-			for(int j=0;j<connectedServerCount;j++){
-				connections.get(j).writeMsg(activityJSON);
-				log.info("Broadcast message to server: " + Settings.getRemoteHostname()+":"+Settings.getRemotePort());
-			}
-		}else{
-			log.info("No server connected! No broadcast sent to server.");
+	}
+
+	public synchronized void broadcastToServer(Connection incommingCon,ArrayList<Connection> connections, String activityJSON){
+		templist = (ArrayList)connections.clone();
+        if(connectedServerCount>1){
+			templist.remove(incommingCon);
+
+            for(int i = 0;i<connectedServerCount-1;i++){
+				templist.get(i).writeMsg(activityJSON);
+                log.info("Broadcast message to server.");
+            }
 		}
 	}
 	//check whether the username and secret matches the user logged in
-	public boolean validUsernameSecret(String username, String secret){
-		return (username.equals(Settings.getUsername()) && secret.equals(Settings.getSecret()));
-	}
-
-//	public boolean validMessage(String msg){
-//		JSONParser parser = new JSONParser();
-//		try {
-//			JSONObject obj = (JSONObject)parser.parse(msg);
-//			try
-////			if ()
-//		} catch (ParseException e) {
-//			e.printStackTrace();
-//		}
-//	}
-
-//	public boolean validActivity(Connection con, String username, String secret){
-//		if(!(Settings.getUsername().equals("anonymous"))||validUsernameSecret(username,secret)){
-//			JSONObject authenticateObj = new JSONObject();
-//			authenticateObj.put("command","AUTHENTICATION_FAIL");
-//			authenticateObj.put("info","the supplied secret is incorrect: "+secret);
-//			con.writeMsg(authenticateObj.toString());
-//			return false;
+//	public boolean validUsernameSecret(Connection con, String username, String secret){
+//		if (username.equals("anonymous")){
+//			return true;
+//
 //		}else{
-//			JSONObject authenticateObj = new JSONObject();
-//			authenticateObj.put("command","AUTHENTICATION_FAIL");
-//			authenticateObj.put("info","the supplied secret is incorrect: "+secret);
-//			con.writeMsg(authenticateObj.toString());
+//            JSONObject authenticationFail = new JSONObject();
+//            authenticationFail.put("command","AUTHENTICATION_FAIL");
+//		    if(!username.equals(Settings.getUsername())){
+//                authenticationFail.put("info","the supplied username is incorrect: "+username);
+//            }else if (!secret.equals(Settings.getSecret())){
+//                authenticationFail.put("info","the supplied secret is incorrect: "+secret);
+//            }else{
+//                authenticationFail.put("info","invalid username and secret. ");
+//            }
+//			con.writeMsg(authenticationFail.toString());
 //			return false;
 //		}
-//		if()
-//
-//
 //	}
+
+//	public void sendAuthenticationFailMsg(Connection con){
+//		JSONObject authenticationFailJSON = new JSONObject();
+//		authenticationFailJSON.put("command","");
+//		authenticationFailJSON.put("command","");
+//		con.writeMsg();
+//	}
+
 
 	/*
 	 * Return REGISTER_SUCCESS or REGISTER_FAIL
@@ -388,9 +492,6 @@ public class Control extends Thread {
 		return resultJSON.toJSONString();
 	}
 
-    /*
-     * not completed yet
-     */
 	public boolean sendLockRequest(List<Connection> cons, String username, String secret) {
 		JSONObject lockInfo = new JSONObject();
 		lockInfo.put("command", "LOCK_REQUEST");
@@ -461,7 +562,7 @@ public class Control extends Thread {
 	public synchronized void connectionClosed(Connection con){
 		if(!term) connections.remove(con);
 	}
-	
+
 	/*
 	 * A new incoming connection has been established, and a reference is returned to it
 	 */
@@ -481,14 +582,18 @@ public class Control extends Thread {
 		Connection c = new Connection(s);
 		connections.add(c);
 		return c;
-		
+
 	}
 
-	
-	
 	@Override
 	public void run(){
-		log.info("using activity interval of "+Settings.getActivityInterval()+" milliseconds");
+        if(Settings.getRemoteHostname() != null){
+            String serverSecret = Settings.getSecret();
+            sendAu(connections.get(0), serverSecret);
+            serverID = Settings.nextSecret();
+            connectedServerCount += 1;
+        }
+	    log.info("using activity interval of "+Settings.getActivityInterval()+" milliseconds");
 		while(!term){
 			// do something with 5 second intervals in between
 			try {
@@ -500,11 +605,22 @@ public class Control extends Thread {
 			if(!term){
 //				log.debug("doing activity");
 //				term=doActivity();
+
+
+
 			}
 			if(connectedServerCount >= 1){
-			    announce();
+
+			    try{
+                    announce();
+                }
+                catch (Exception e){
+			        log.error("A server has quited accidentally. System failed.");
+			        System.exit(-1);
+                }
+
             }
-			
+
 		}
 		log.info("closing "+connections.size()+" connections");
 		// clean up
@@ -512,16 +628,52 @@ public class Control extends Thread {
 			connection.closeCon();
 		}
 		listener.setTerm(true);
+
 	}
-	
-	public boolean doActivity(){
-		return false;
+
+	public void sendAu(Connection con, String secret) {
+
+		JSONObject authenMsg = new JSONObject();
+		authenMsg.put("command", "AUTHENTICATE");
+		authenMsg.put("secret", secret);
+		String authenJSON = authenMsg.toJSONString();
+        log.info("Authenticate send to: "+con.getSocket().getRemoteSocketAddress());
+		serverList.add(con.getSocket().getRemoteSocketAddress());
+		try {
+			con.writeMsg(authenJSON);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
-	
+
+
+	public boolean doAu(Connection con, String s) {
+		if (s.equals(Settings.getSecret())) {
+			return true;
+		} else {
+
+		    JSONObject authenfailMsg = new JSONObject();
+			authenfailMsg.put("command", "AUTHENTICATION_FAIL");
+			authenfailMsg.put("info", "the supplied secret is incorrect: " + s);
+
+			String authenfailJSON = authenfailMsg.toJSONString();
+			try {
+				con.writeMsg(authenfailJSON);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			return false;
+		}
+	}
+
+//	public boolean doActivity(){
+//		return false;
+//	}
+
 	public final void setTerm(boolean t){
 		term=t;
 	}
-	
+
 	public final ArrayList<Connection> getConnections() {
 		return connections;
 	}
