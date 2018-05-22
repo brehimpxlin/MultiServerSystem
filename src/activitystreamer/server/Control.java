@@ -51,7 +51,7 @@ public class Control extends Thread {
 		// connect to another server when initiate the server
 		// start a listener
 		try {
-                initiateConnection();
+            initiateConnection();
 			listener = new Listener();
 		} catch (IOException e1) {
 			log.fatal("failed to startup a listening thread: "+e1);
@@ -292,7 +292,7 @@ public class Control extends Thread {
                         boolean isNewServer = true;
                         if(serverLoads.size() > 0){
                             for(HashMap server: serverLoads){
-                                if(server.get("serverID").equals(announceInfo.get("serverID"))){
+                                if(server.get("id").equals(announceInfo.get("id"))){
                                     server.put("load", announceInfo.get("load"));
                                     isNewServer = false;
                                     break;
@@ -304,7 +304,7 @@ public class Control extends Thread {
                         //If no known server was found, add a new HashMap to serverLoads for the new server.
                         if(isNewServer == true){
                             HashMap newServer = new HashMap();
-                            newServer.put("serverID", announceInfo.get("serverID"));
+                            newServer.put("id", announceInfo.get("id"));
                             newServer.put("hostname", announceInfo.get("hostname"));
                             newServer.put("port", announceInfo.get("port"));
                             newServer.put("load", announceInfo.get("load"));
@@ -547,7 +547,7 @@ public class Control extends Thread {
 	public void announce(){
         JSONObject announceInfo = new JSONObject();
         announceInfo.put("command", "SERVER_ANNOUNCE");
-        announceInfo.put("serverID", serverID);
+        announceInfo.put("id", serverID);
         announceInfo.put("load", connections.size() - connectedServerCount);
         announceInfo.put("hostname", Settings.getLocalHostname());
         announceInfo.put("port", Settings.getLocalPort());
