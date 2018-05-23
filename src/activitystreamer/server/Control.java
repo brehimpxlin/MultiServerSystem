@@ -104,6 +104,7 @@ public class Control extends Thread {
 
         JSONParser parser = new JSONParser();
 	    try{
+	        //SyncRegistration(con);
             JSONObject clientMsg = (JSONObject) parser.parse(msg);
             if(!clientMsg.containsKey("command")){
                 con.writeMsg(InvalidMessageProcessor.invalidInfo("NO_COMMAND"));
@@ -155,11 +156,12 @@ public class Control extends Thread {
 					break;
 
                 case "AUTHENTICATE":
-                    // do authenticate here
-
 					if(doAu(con,(String)clientMsg.get("secret"))){
                         connectedServerCount += 1;
                         serverList.add(con.getSocket().getRemoteSocketAddress());
+
+                        //If the connected server is authenticated, send registration info to it.
+                        SyncRegistration(con);
 					}else{
 					    con.closeCon();
 					    connectionClosed(con);
@@ -277,6 +279,10 @@ public class Control extends Thread {
 					broadcastToClient(connections,activityMessage);
 					break;
 
+                case "SYNCHRONIZE":
+                    registration = (HashMap)clientMsg.get("registration");
+                    break;
+
 				//When a SERVER_ANNOUNCE message is received, update the serverLoads according to the message.
                 case "SERVER_ANNOUNCE":
                     if(!checkCon(con, "SERVER")){
@@ -333,7 +339,6 @@ public class Control extends Thread {
 
                 case "INVALID_MESSAGE":
                     break;
-
 
 				case "LOGOUT":
 					clientList.remove(con.getSocket().getRemoteSocketAddress());
@@ -538,11 +543,19 @@ public class Control extends Thread {
 	public boolean broadcast(List<Connection> cons, String msg) {
 		for (Connection c : cons) {
 			c.writeMsg(msg);
-
-
 		}
 		return true;
 	}
+
+	public boolean SyncRegistration(Connection con) {
+	    JSONObject registrationObj = new JSONObject();
+	    registrationObj.put("command", "SYNCHRONIZE");
+	    registrationObj.put("registration", registration);
+        String registrationJSON = registrationObj.toJSONString();
+        log.info("registration json: " + registrationJSON);
+        con.writeMsg(registrationJSON);
+        return true;
+    }
 
 	public void announce(){
         JSONObject announceInfo = new JSONObject();
@@ -553,6 +566,41 @@ public class Control extends Thread {
         announceInfo.put("port", Settings.getLocalPort());
         List<Connection> otherServers = connections.subList(0, connectedServerCount);
         broadcast(otherServers, announceInfo.toJSONString());
+    }
+
+    public void sendAu(Connection con, String secret) {
+
+        JSONObject authenMsg = new JSONObject();
+        authenMsg.put("command", "AUTHENTICATE");
+        authenMsg.put("secret", secret);
+        String authenJSON = authenMsg.toJSONString();
+        log.info("Authenticate send to: "+con.getSocket().getRemoteSocketAddress());
+        serverList.add(con.getSocket().getRemoteSocketAddress());
+        try {
+            con.writeMsg(authenJSON);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public boolean doAu(Connection con, String s) {
+        if (s.equals(Settings.getSecret())) {
+            return true;
+        } else {
+
+            JSONObject authenfailMsg = new JSONObject();
+            authenfailMsg.put("command", "AUTHENTICATION_FAIL");
+            authenfailMsg.put("info", "the supplied secret is incorrect: " + s);
+
+            String authenfailJSON = authenfailMsg.toJSONString();
+            try {
+                con.writeMsg(authenfailJSON);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return false;
+        }
     }
 
 
@@ -606,8 +654,6 @@ public class Control extends Thread {
 //				log.debug("doing activity");
 //				term=doActivity();
 
-
-
 			}
 			if(connectedServerCount >= 1){
 
@@ -618,7 +664,6 @@ public class Control extends Thread {
 			        log.error("A server has quited accidentally. System failed.");
 			        System.exit(-1);
                 }
-
             }
 
 		}
@@ -631,40 +676,7 @@ public class Control extends Thread {
 
 	}
 
-	public void sendAu(Connection con, String secret) {
 
-		JSONObject authenMsg = new JSONObject();
-		authenMsg.put("command", "AUTHENTICATE");
-		authenMsg.put("secret", secret);
-		String authenJSON = authenMsg.toJSONString();
-        log.info("Authenticate send to: "+con.getSocket().getRemoteSocketAddress());
-		serverList.add(con.getSocket().getRemoteSocketAddress());
-		try {
-			con.writeMsg(authenJSON);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-
-	public boolean doAu(Connection con, String s) {
-		if (s.equals(Settings.getSecret())) {
-			return true;
-		} else {
-
-		    JSONObject authenfailMsg = new JSONObject();
-			authenfailMsg.put("command", "AUTHENTICATION_FAIL");
-			authenfailMsg.put("info", "the supplied secret is incorrect: " + s);
-
-			String authenfailJSON = authenfailMsg.toJSONString();
-			try {
-				con.writeMsg(authenfailJSON);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			return false;
-		}
-	}
 
 //	public boolean doActivity(){
 //		return false;
