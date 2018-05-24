@@ -3,6 +3,7 @@ package activitystreamer.util;
 import java.math.BigInteger;
 import java.net.Socket;
 import java.security.SecureRandom;
+import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -11,7 +12,6 @@ public class Settings {
 	private static final Logger log = LogManager.getLogger();
 	private static SecureRandom random = new SecureRandom();
 	private static int localPort = 3780;
-//	private static int localPort = 3788;
 	private static String localHostname = "localhost";
 	private static String remoteHostname = null;
 	private static int remotePort = 3780;
@@ -19,7 +19,9 @@ public class Settings {
 	private static String secret = "";
 	private static String username = "anonymous";
 
-	
+	private static int crashedPort = 0;
+	private static String crashedHostname = localHostname;
+
 	public static int getLocalPort() {
 		return localPort;
 	}
@@ -84,7 +86,21 @@ public class Settings {
 		Settings.localHostname = localHostname;
 	}
 
-	
+	public static String getCrashedHostname() {
+	    return crashedHostname;
+    }
+
+    public static void setCrashedHostname(String crashedHostname) {
+        Settings.crashedHostname = crashedHostname;
+    }
+
+    public static int getCrashedPort() {
+	    return crashedPort;
+    }
+
+    public static void setCrashedPort(int crashedPort) {
+	    Settings.crashedPort = crashedPort;
+    }
 	/*
 	 * some general helper functions
 	 */
@@ -92,6 +108,7 @@ public class Settings {
 	public static String socketAddress(Socket socket){
 		return socket.getInetAddress()+":"+socket.getPort();
 	}
+
 
 	public static String nextSecret() {
 	    return new BigInteger(130, random).toString(32);

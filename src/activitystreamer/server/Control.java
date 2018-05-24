@@ -50,13 +50,15 @@ public class Control extends Thread {
 		// initialize the connections array
 		connections = new ArrayList<Connection>();
         if(Settings.getSecret().equals("")){
-            Settings.setSecret(Settings.nextSecret());
+            // setting a random secret for server
+            // Settings.setSecret(Settings.nextSecret());
+            Settings.setSecret("gd8a67ieqvspmor4rt3mp43hlb");
             log.info("Using server secret: "+Settings.getSecret());
         }
 		// connect to another server when initiate the server
 		// start a listener
 		try {
-            initiateConnection();
+            initiateConnection(false);
 			listener = new Listener();
 		} catch (IOException e1) {
 			log.fatal("failed to startup a listening thread: "+e1);
@@ -65,20 +67,34 @@ public class Control extends Thread {
 		start();
 	}
 
-	public void initiateConnection(){
+	public boolean initiateConnection(boolean isReconnection){
 		// make a connection to another server if remote hostname is supplied
 		if(Settings.getRemoteHostname()!=null){
 			try {
 				outgoingConnection(new Socket(Settings.getRemoteHostname(),Settings.getRemotePort()));
-
-
-			} catch (IOException e) {
+				if (isReconnection) {
+                    SyncRegistration(connections.get(connections.size()-1));
+                }
+            } catch (IOException e) {
 				log.error("failed to make connection to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+" :"+e);
+				if (!isReconnection)
 				System.exit(-1);
+				return false;
 			}
 		}
+		return true;
 	}
 
+	public void restoreConnection(String crashedHostName, int crashPort){
+	    if(Settings.getCrashedHostname() != null && Settings.getCrashedPort() != 0){
+	        try {
+	            outgoingConnection(new Socket(Settings.getCrashedHostname(), Settings.getCrashedPort()));
+            } catch (IOException e) {
+	            log.error("failed to make connection to crashed server: "+
+                        Settings.getCrashedHostname()+":"+Settings.getCrashedPort()+", try again in 10s");
+            }
+        }
+    }
 
     public boolean checkCon(Connection con, String type){
         switch (type){
@@ -193,7 +209,15 @@ public class Control extends Thread {
                     } else {
                     	log.info(connectedServerCount);
                         requestServer = con;
-                        List<Connection> otherServers = new ArrayList<>(connections.subList(0,connectedServerCount));
+                        //List<Connection> otherServers = new ArrayList<>(connections.subList(0,connectedServerCount));
+                        LinkedList<Connection> otherServers = new LinkedList<>();
+                        for(SocketAddress server: serverList){
+                            for(Connection cons: connections){
+                                if(cons.getSocket().getRemoteSocketAddress().equals(server)){
+                                    otherServers.push(cons);
+                                }
+                            }
+                        }
                         otherServers.remove(con);
                         sendLockRequest(otherServers, username, secret);
                     }
@@ -431,6 +455,9 @@ public class Control extends Thread {
         catch (ClassCastException | ParseException e) {
             con.writeMsg(InvalidMessageProcessor.invalidInfo("JSON_PARSE_ERROR"));
         }
+        catch (NullPointerException e) {
+	        con.writeMsg(InvalidMessageProcessor.invalidInfo("NULL MESSAGE"));
+        }
         catch (Exception e){
             e.printStackTrace();
         }
@@ -513,6 +540,7 @@ public class Control extends Thread {
 		    return false;
 		}
 	}
+
     public synchronized void processActivityToClient(){
 	    if(al.size()>0) {
             Collections.sort(al);
@@ -538,6 +566,8 @@ public class Control extends Thread {
         }
     }
 
+
+
 	public synchronized void broadcastToClient(ArrayList<Connection> connections, String activityJSON){
 		for(int i = connectedServerCount;i<connections.size();i++){
 			connections.get(i).writeMsg(activityJSON);
@@ -556,33 +586,6 @@ public class Control extends Thread {
             }
 		}
 	}
-	//check whether the username and secret matches the user logged in
-//	public boolean validUsernameSecret(Connection con, String username, String secret){
-//		if (username.equals("anonymous")){
-//			return true;
-//
-//		}else{
-//            JSONObject authenticationFail = new JSONObject();
-//            authenticationFail.put("command","AUTHENTICATION_FAIL");
-//		    if(!username.equals(Settings.getUsername())){
-//                authenticationFail.put("info","the supplied username is incorrect: "+username);
-//            }else if (!secret.equals(Settings.getSecret())){
-//                authenticationFail.put("info","the supplied secret is incorrect: "+secret);
-//            }else{
-//                authenticationFail.put("info","invalid username and secret. ");
-//            }
-//			con.writeMsg(authenticationFail.toString());
-//			return false;
-//		}
-//	}
-
-//	public void sendAuthenticationFailMsg(Connection con){
-//		JSONObject authenticationFailJSON = new JSONObject();
-//		authenticationFailJSON.put("command","");
-//		authenticationFailJSON.put("command","");
-//		con.writeMsg();
-//	}
-
 
 	/*
 	 * Return REGISTER_SUCCESS or REGISTER_FAIL
@@ -686,7 +689,6 @@ public class Control extends Thread {
         }
     }
 
-
     public boolean doAu(Connection con, String s) {
         if (s.equals(Settings.getSecret())) {
             return true;
@@ -706,7 +708,6 @@ public class Control extends Thread {
         }
     }
 
-
 	/*
 	 * The connection has been closed by the other party.
 	 */
@@ -722,7 +723,6 @@ public class Control extends Thread {
 		Connection c = new Connection(s);
 		connections.add(c);
 		return c;
-
 	}
 
 	/*
@@ -733,7 +733,6 @@ public class Control extends Thread {
 		Connection c = new Connection(s);
 		connections.add(c);
 		return c;
-
 	}
 
 //    public synchronized long getTimeRange(long time){
@@ -773,12 +772,12 @@ public class Control extends Thread {
 			if(connectedServerCount >= 1){
 
 			    try{
-                    announce();
+//                    announce();
                     processActivityToClient();
                 }
                 catch (Exception e){
 			        log.error("A server has quited accidentally. System failed.");
-			        System.exit(-1);
+			        //System.exit(-1);
                 }
             }
 
@@ -791,12 +790,6 @@ public class Control extends Thread {
 		listener.setTerm(true);
 
 	}
-
-
-
-//	public boolean doActivity(){
-//		return false;
-//	}
 
 	public final void setTerm(boolean t){
 		term=t;

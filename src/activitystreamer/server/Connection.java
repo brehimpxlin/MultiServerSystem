@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -76,7 +79,13 @@ public class Connection extends Thread {
 				log.info("Receive message: " + data);
 				term=Control.getInstance().process(this,data);
 			}
+
 			log.debug("connection closed to "+Settings.socketAddress(socket));
+			/*
+			 * reconnect when connection closed accidentally
+			 */
+			reconnect();
+
 			Control.getInstance().connectionClosed(this);
 			in.close();
 		} catch (IOException e) {
@@ -93,4 +102,21 @@ public class Connection extends Thread {
 	public boolean isOpen() {
 		return open;
 	}
+
+    public synchronized void reconnect() {
+        if (this == Control.getInstance().getConnections().get(0)) {
+            log.info("tring to reconnect to the crashed server ...");
+            Timer timer = new Timer();
+            int counter = 1;
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    log.info("reconnecting ...");
+                    Boolean isSuccess = Control.getInstance().initiateConnection(true);
+                    if (isSuccess)
+                        timer.cancel();
+                }
+            }, 0, 5000);
+        }
+    }
 }
