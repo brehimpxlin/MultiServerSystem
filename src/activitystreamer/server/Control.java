@@ -10,6 +10,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.util.Collections;
@@ -23,9 +24,9 @@ public class Control extends Thread {
 	private static Map registration = new HashMap();
     //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
 	private static List<HashMap<String, Integer>> serverLoads = new LinkedList<>();
-	private static List<SocketAddress> serverList = new LinkedList<>();
-    private static List<SocketAddress> clientList = new LinkedList<>();
-	private static String serverID = "server 0";
+	private static LinkedList<SocketAddress> serverList = new LinkedList<>();
+    private static LinkedList<SocketAddress> clientList = new LinkedList<>();
+	private static String serverID = Settings.getLocalHostname()+":"+Settings.getLocalPort();
 	private static boolean term=false;
 	private static Listener listener;
 	private static int connectedServerCount = 0;
@@ -184,6 +185,7 @@ public class Control extends Thread {
 
                         //If the connected server is authenticated, send registration info to it.
                         SyncRegistration(con);
+
 					}else{
 					    con.closeCon();
 					    connectionClosed(con);
@@ -378,7 +380,9 @@ public class Control extends Thread {
                     ActivityMsg temp = new ActivityMsg(msg_activity,msg_command,msg_username,msg_timestamp);
                     al.add(temp);
 					broadcastToServer(con,connections, msg);
+
 //					broadcastToClient(connections,modifiedMsg);
+
 					break;
 
                 case "SYNCHRONIZE":
@@ -420,14 +424,45 @@ public class Control extends Thread {
 
                         }
                         //Forward this message to other server.
-                        List<Connection> forwardServers = new ArrayList<>(connections.subList(0,connectedServerCount));
+                        LinkedList<Connection> forwardServers = new LinkedList<>();
+                        for(SocketAddress server: serverList){
+                            for(Connection cons: connections){
+                                if(cons.getSocket().getRemoteSocketAddress().equals(server)){
+                                    forwardServers.push(cons);
+
+                                }
+                            }
+                        }
                         forwardServers.remove(con);
+
                         broadcast(forwardServers, msg);
 
                     } catch (Exception e){
-                        con.writeMsg(InvalidMessageProcessor.invalidInfo("JSON_PARSE_ERROR"));
-                        return false;
+                        e.printStackTrace();
+
+//                        con.writeMsg(InvalidMessageProcessor.invalidInfo("JSON_PARSE_ERROR"));
+//                        return false;
                     }
+
+                    if(serverLoads != null && serverLoads.size() > 0){
+
+                        JSONObject redirMsg = redirect();
+                        if(redirMsg.containsKey("hostname")){
+                            SocketAddress client = clientList.pop();
+                            for(Connection cons: connections){
+                                if(cons.getSocket().getRemoteSocketAddress().equals(client)){
+                                    cons.writeMsg(redirMsg.toJSONString());
+                                    log.info("Redirect user "+client+" to "+redirMsg.get("hostname")+":"+redirMsg.get("port")+".");
+                                    cons.closeCon();
+                                    connectionClosed(cons);
+                                    clientList.remove(client);
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+
                     break;
 
 
@@ -500,8 +535,7 @@ public class Control extends Thread {
         JSONObject redirMsg = new JSONObject();
 
         for(HashMap server : serverLoads){
-
-            if(this.getConnections().size() - connectedServerCount - (long)server.get("load") >= 2){
+            if(clientList.size() - (long)server.get("load") >= 2){
 //                log.info(this.getConnections().size()+", "+ connectedServerCount);
                 String redirHost = server.get("hostname").toString();
                 String redirPort = server.get("port").toString();
@@ -667,10 +701,17 @@ public class Control extends Thread {
         JSONObject announceInfo = new JSONObject();
         announceInfo.put("command", "SERVER_ANNOUNCE");
         announceInfo.put("id", serverID);
-        announceInfo.put("load", connections.size() - connectedServerCount);
+        announceInfo.put("load", clientList.size());
         announceInfo.put("hostname", Settings.getLocalHostname());
         announceInfo.put("port", Settings.getLocalPort());
-        List<Connection> otherServers = connections.subList(0, connectedServerCount);
+        LinkedList<Connection> otherServers = new LinkedList<>();
+        for(SocketAddress server: serverList){
+            for(Connection cons: connections){
+                if(cons.getSocket().getRemoteSocketAddress().equals(server)){
+                    otherServers.push(cons);
+                }
+            }
+        }
         broadcast(otherServers, announceInfo.toJSONString());
     }
 
@@ -732,6 +773,7 @@ public class Control extends Thread {
 		log.debug("outgoing connection: "+Settings.socketAddress(s));
 		Connection c = new Connection(s);
 		connections.add(c);
+
 		return c;
 	}
 
@@ -748,7 +790,6 @@ public class Control extends Thread {
         if(Settings.getRemoteHostname() != null){
             String serverSecret = Settings.getSecret();
             sendAu(connections.get(0), serverSecret);
-            serverID = Settings.nextSecret();
             connectedServerCount += 1;
         }
 	    log.info("using activity interval of "+Settings.getActivityInterval()+" milliseconds");
