@@ -1,6 +1,7 @@
 package activitystreamer.server;
 
 import activitystreamer.util.InvalidMessageProcessor;
+import activitystreamer.util.ActivityMsg;
 import activitystreamer.util.Settings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -11,6 +12,7 @@ import org.json.simple.parser.ParseException;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.util.Collections;
 import java.util.*;
 
 public class Control extends Thread {
@@ -32,6 +34,9 @@ public class Control extends Thread {
 	private static String clientUsername;
 	private static boolean isRegistering = false;
 	private static Connection requestServer;
+    private static boolean existTimeStamp = false;
+    private static long startTime;
+    private static List<ActivityMsg> al = new ArrayList<ActivityMsg>();
 	protected static Control control = null;
 
 	public static Control getInstance() {
@@ -95,6 +100,7 @@ public class Control extends Thread {
         }
         return false;
     }
+
 
 	/*
 	 * Processing incoming messages from the connection.
@@ -242,8 +248,14 @@ public class Control extends Thread {
 					secret = (String)clientMsg.get("secret");
 					if((username.equals("anonymous")||(username.equals(Settings.getUsername())&&secret.equals(Settings.getSecret())))){
                         JSONObject actBroadcast = new JSONObject();
+
+                        JSONParser parser2 = new JSONParser();
+                        JSONObject msgFromClient = (JSONObject) parser2.parse(msg);
+                        msgFromClient.put("timestamp",System.currentTimeMillis());
+                        String msgString = msgFromClient.toString();
                         actBroadcast.put("command","ACTIVITY_BROADCAST");
-                        actBroadcast.put("activity",msg);
+                        actBroadcast.put("activity",msgString);
+
                         if (connectedServerCount > 0) {
                             broadcast(connections.subList(0, connectedServerCount), actBroadcast.toJSONString());
                         }
@@ -263,6 +275,60 @@ public class Control extends Thread {
 					}
                     break;
 
+//                case "ACTIVITY_MESSAGE":
+//                    log.info("Activity message received from client.");
+//                    username = (String)clientMsg.get("username");
+//                    secret = (String)clientMsg.get("secret");
+//                    if((username.equals("anonymous")||(username.equals(Settings.getUsername())&&secret.equals(Settings.getSecret())))){
+//
+//                        long time_range = getTimeRange(startTime);
+//                        if(!existTimeStamp) {
+//                            startTime = System.currentTimeMillis();
+//                            existTimeStamp = true;
+//                        }else{
+//                            if (time_range <= 10000L){
+//                                al.add(msg);
+//                            }else{
+//                                //the time range is more than limit
+//                                existTimeStamp = false;
+//                                //broadcast message to other server -----add code here-------
+//
+//                                //-------then create a starttime and add the message into the arraylist
+//                                al.clear();
+//                                startTime = System.currentTimeMillis();
+//                                al.add(msg);
+//
+//                            }
+//                        }
+//
+//
+//
+//
+//
+//
+//
+//                        JSONObject actBroadcast = new JSONObject();
+//                        actBroadcast.put("command","ACTIVITY_BROADCAST");
+//                        actBroadcast.put("activity",msg);
+//                        if (connectedServerCount > 0) {
+//                            broadcast(connections.subList(0, connectedServerCount), actBroadcast.toJSONString());
+//                        }
+//                        broadcastToClient(connections,msg);
+//
+//                    }else{
+//                        JSONObject authenticationFail = new JSONObject();
+//                        authenticationFail.put("command","AUTHENTICATION_FAIL");
+//                        if(!username.equals(Settings.getUsername())){
+//                            authenticationFail.put("info","the supplied username is incorrect: "+username);
+//                        }else if (!secret.equals(Settings.getSecret())){
+//                            authenticationFail.put("info","the supplied secret is incorrect: "+secret);
+//                        }else{
+//                            authenticationFail.put("info","invalid username and secret. ");
+//                        }
+//                        con.writeMsg(authenticationFail.toString());
+//                    }
+//                    break;
+
 				case "ACTIVITY_BROADCAST":
 
                     if(!checkCon(con, "SERVER")){
@@ -272,11 +338,23 @@ public class Control extends Thread {
                         break;
                     }
 				    log.info("Activity broadcast message received from server." );
-					JSONObject  activityBroadcast = new JSONObject();
-
-					String activityMessage = (String)clientMsg.get("activity");
+//					JSONObject  activityBroadcast = new JSONObject();
+                    JSONParser parser3 = new JSONParser();
+                    JSONObject msgFromServer = (JSONObject) parser3.parse(msg);
+                    String msgString = (String)msgFromServer.get("activity");
+                    JSONObject actMsg = (JSONObject) parser3.parse(msgString);
+//                    private String activity;
+//                    private String command;
+//                    private String username;
+//                    private String timestamp;
+                    String msg_activity = (String)actMsg.get("activity");
+                    String msg_command = (String)actMsg.get("command");
+                    String msg_username = (String)actMsg.get("username");
+                    long msg_timestamp = (long)actMsg.get("timestamp");
+                    ActivityMsg temp = new ActivityMsg(msg_activity,msg_command,msg_username,msg_timestamp);
+                    al.add(temp);
 					broadcastToServer(con,connections, msg);
-					broadcastToClient(connections,activityMessage);
+//					broadcastToClient(connections,modifiedMsg);
 					break;
 
                 case "SYNCHRONIZE":
@@ -435,6 +513,31 @@ public class Control extends Thread {
 		    return false;
 		}
 	}
+    public synchronized void processActivityToClient(){
+	    if(al.size()>0) {
+            Collections.sort(al);
+            for (int i = connectedServerCount; i < connections.size(); i++) {
+                for (int j = 0; j < al.size(); j++) {
+                    String msg_act = al.get(j).getActivity();
+                    String msg_cmd = al.get(j).getCommand();
+                    String msg_uname = al.get(j).getUsername();
+//                long msg_time = al.get(j).getTimestamp();
+                    JSONObject msgToClient = new JSONObject();
+                    msgToClient.put("activity", msg_act);
+                    msgToClient.put("command", msg_cmd);
+                    msgToClient.put("username", msg_uname);
+//                msgToClient.put("timestamp",msg_time);
+                    connections.get(i).writeMsg(msgToClient.toString());
+                }
+                log.info("Activity message broadcast to client.");
+            }
+            al.clear();
+            log.info("Activity ArrayList had been cleared.");
+        }else{
+            log.info("No activity exist in ArrayList.");
+        }
+    }
+
 	public synchronized void broadcastToClient(ArrayList<Connection> connections, String activityJSON){
 		for(int i = connectedServerCount;i<connections.size();i++){
 			connections.get(i).writeMsg(activityJSON);
@@ -633,7 +736,15 @@ public class Control extends Thread {
 
 	}
 
-	@Override
+//    public synchronized long getTimeRange(long time){
+//        long nowTime = System.currentTimeMillis();
+//        long TotalTime = nowTime - time;
+//        return TotalTime;
+//    }
+
+
+
+    @Override
 	public void run(){
         if(Settings.getRemoteHostname() != null){
             String serverSecret = Settings.getSecret();
@@ -650,6 +761,10 @@ public class Control extends Thread {
 				log.info("received an interrupt, system is shutting down");
 				break;
 			}
+
+
+
+
 			if(!term){
 //				log.debug("doing activity");
 //				term=doActivity();
@@ -659,6 +774,7 @@ public class Control extends Thread {
 
 			    try{
                     announce();
+                    processActivityToClient();
                 }
                 catch (Exception e){
 			        log.error("A server has quited accidentally. System failed.");
