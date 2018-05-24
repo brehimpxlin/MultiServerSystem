@@ -655,7 +655,7 @@ public class Control extends Thread {
 			if(connectedServerCount >= 1){
 
 			    try{
-                    announce();
+//                    announce();
                 }
                 catch (Exception e){
 			        log.error("A server has quited accidentally. System failed.");
