@@ -73,9 +73,10 @@ public class Control extends Thread {
 		if(Settings.getRemoteHostname()!=null){
 			try {
 				outgoingConnection(new Socket(Settings.getRemoteHostname(),Settings.getRemotePort()));
-				if (isReconnection) {
-                    SyncRegistration(connections.get(connections.size()-1));
-                }
+//				if (isReconnection) {
+//				    sendAu(connections.get(connections.size()-1), Settings.getSecret());
+//                    SyncRegistration(connections.get(connections.size()-1));
+//                }
             } catch (IOException e) {
 				log.error("failed to make connection to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+" :"+e);
 				if (!isReconnection)
@@ -124,7 +125,7 @@ public class Control extends Thread {
 	 * Return true if the connection should close.
 	 */
 	public synchronized boolean process(Connection con,String msg){
-
+	    
         JSONParser parser = new JSONParser();
 	    try{
 	        //SyncRegistration(con);
@@ -184,7 +185,9 @@ public class Control extends Thread {
                         serverList.add(con.getSocket().getRemoteSocketAddress());
 
                         //If the connected server is authenticated, send registration info to it.
-                        SyncRegistration(con);
+                        if (registration.size() != 0) {
+                            SyncRegistration(con);
+                        }
 
 					}else{
 					    con.closeCon();
@@ -386,7 +389,14 @@ public class Control extends Thread {
 					break;
 
                 case "SYNCHRONIZE":
-                    registration = (HashMap)clientMsg.get("registration");
+                    if(!checkCon(con, "SERVER")){
+                        con.writeMsg(InvalidMessageProcessor.invalidInfo("SERVER"));
+                        con.closeCon();
+                        connectionClosed(con);
+                        break;
+                    }
+
+                    registration.putAll((HashMap)clientMsg.get("registration"));
                     break;
 
 				//When a SERVER_ANNOUNCE message is received, update the serverLoads according to the message.
@@ -692,8 +702,10 @@ public class Control extends Thread {
 	    registrationObj.put("command", "SYNCHRONIZE");
 	    registrationObj.put("registration", registration);
         String registrationJSON = registrationObj.toJSONString();
-        log.info("registration json: " + registrationJSON);
-        con.writeMsg(registrationJSON);
+        if (registration.size() != 0) {
+            log.info("sending registration information: " + registrationJSON);
+            con.writeMsg(registrationJSON);
+        }
         return true;
     }
 
@@ -803,8 +815,6 @@ public class Control extends Thread {
 			}
 
 
-
-
 			if(!term){
 //				log.debug("doing activity");
 //				term=doActivity();
@@ -814,7 +824,6 @@ public class Control extends Thread {
 
 			    try{
                     announce();
-
                     processActivityToClient();
                 }
                 catch (Exception e){
