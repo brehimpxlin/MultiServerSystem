@@ -813,7 +813,7 @@ public class Control extends Thread {
 			if(connectedServerCount >= 1){
 
 			    try{
-//                    announce();
+                    announce();
 
                     processActivityToClient();
                 }
