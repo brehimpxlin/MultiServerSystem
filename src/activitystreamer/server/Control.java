@@ -291,7 +291,7 @@ public class Control extends Thread {
 					log.info("Activity message received from client.");
 					username = (String)clientMsg.get("username");
 					secret = (String)clientMsg.get("secret");
-					if((username.equals("anonymous")||(username.equals(Settings.getUsername())&&secret.equals(Settings.getSecret())))){
+                    if((username.equals("anonymous")||checkCon(con,"CLIENT"))){
                         JSONObject actBroadcast = new JSONObject();
 
                         JSONParser parser2 = new JSONParser();
@@ -310,22 +310,25 @@ public class Control extends Thread {
                                 tempOtherServers.push(cons);
                             }
                         }
-
+                        serverList.remove(con);
                         broadcast(tempOtherServers, actBroadcast.toJSONString());
 
 //                        broadcastToServer(con,msg);
                         broadcastToClient(msg);
 
 					}else{
+//                        JSONObject authenticationFail = new JSONObject();
+//                        authenticationFail.put("command","AUTHENTICATION_FAIL");
+//                        if(!username.equals(Settings.getUsername())){
+//                            authenticationFail.put("info","the supplied username is incorrect: "+username);
+//                        }else if (!secret.equals(Settings.getSecret())){
+//                            authenticationFail.put("info","the supplied secret is incorrect: "+secret);
+//                        }else{
+//                            authenticationFail.put("info","invalid username and secret. ");
+//                        }
                         JSONObject authenticationFail = new JSONObject();
                         authenticationFail.put("command","AUTHENTICATION_FAIL");
-                        if(!username.equals(Settings.getUsername())){
-                            authenticationFail.put("info","the supplied username is incorrect: "+username);
-                        }else if (!secret.equals(Settings.getSecret())){
-                            authenticationFail.put("info","the supplied secret is incorrect: "+secret);
-                        }else{
-                            authenticationFail.put("info","invalid username and secret. ");
-                        }
+                        authenticationFail.put("info","invalid username or secret. ");
                         con.writeMsg(authenticationFail.toString());
 					}
                     break;
@@ -568,9 +571,21 @@ public class Control extends Thread {
 	}
 
     public synchronized void processActivityToClient(){
+
+
+        LinkedList<Connection> tempClientList = new LinkedList<>();
+
+        for (Connection cons : connections) {
+            if (clientList.contains(cons.getSocket().getRemoteSocketAddress())) {
+                tempClientList.push(cons);
+//                cons.writeMsg(activityJSON);
+//                log.info("Activity message broadcast to client.");
+            }
+        }
+
 	    if(al.size()>0) {
             Collections.sort(al);
-            for (int i = connectedServerCount; i < connections.size(); i++) {
+            for (int i = 0; i < tempClientList.size(); i++) {
                 for (int j = 0; j < al.size(); j++) {
                     String msg_act = al.get(j).getActivity();
                     String msg_cmd = al.get(j).getCommand();
@@ -581,7 +596,7 @@ public class Control extends Thread {
                     msgToClient.put("command", msg_cmd);
                     msgToClient.put("username", msg_uname);
 //                msgToClient.put("timestamp",msg_time);
-                    connections.get(i).writeMsg(msgToClient.toString());
+                    tempClientList.get(i).writeMsg(msgToClient.toString());
                 }
                 log.info("Activity message broadcast to client.");
             }
@@ -865,7 +880,9 @@ public synchronized void broadcastToClient(String activityJSON) {
 //        return TotalTime;
 //    }
 
+    public void showList(){
 
+    }
 
     @Override
 	public void run(){
