@@ -27,8 +27,35 @@ public class Connection extends Thread {
 	private boolean open = false;
 	private Socket socket;
 	private boolean term=false;
+    private String sender;
+    private String receiver;
 
-	
+    public String getSender() {
+        return sender;
+    }
+
+    public void setSender(String sender) {
+        this.sender = sender;
+    }
+
+    public String getReceiver() {
+        return receiver;
+    }
+
+    public void setReceiver(String receive) {
+        this.receiver = receive;
+    }
+
+
+
+//	public String getRemoteServerID() {
+//		return remoteServerID;
+//	}
+//
+//	public void setRemoteServerID(String remoteServerID) {
+//		this.remoteServerID = remoteServerID;
+//	}
+
 	Connection(Socket socket) throws IOException{
 		in = new DataInputStream(socket.getInputStream());
 	    out = new DataOutputStream(socket.getOutputStream());
@@ -81,6 +108,15 @@ public class Connection extends Thread {
 			}
 
 			log.debug("connection closed to "+Settings.socketAddress(socket));
+
+			String crashServer;
+			if(Control.getInstance().getServerID().equals(getSender())){
+                crashServer = getReceiver();
+            }else{
+                crashServer = getSender();
+            }
+			Control.getInstance().initCrashServer(crashServer);
+
 			/*
 			 * reconnect when connection closed accidentally
 			 */
