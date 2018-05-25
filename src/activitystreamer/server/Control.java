@@ -19,7 +19,7 @@ import java.util.*;
 public class Control extends Thread {
 	private static final Logger log = LogManager.getLogger();
 	private static ArrayList<Connection> connections;
-	private static ArrayList<Connection> templist;
+	private static LinkedList<Connection> templist;
 	//Registration is a HashMap containing the username and secret of registered clients.
 	private static Map registration = new HashMap();
     //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
@@ -196,10 +196,10 @@ public class Control extends Thread {
                         if (registration.size() != 0) {
                             SyncRegistration(con);
                         }
-                        
+
                         con.setSender((String)clientMsg.get("id"));
                         con.setReceiver(serverID);
-
+                        reBoradcastMsgToCrashServer(con);
 					}else{
 					    con.closeCon();
 					    connectionClosed(con);
@@ -296,10 +296,20 @@ public class Control extends Thread {
                         actBroadcast.put("command","ACTIVITY_BROADCAST");
                         actBroadcast.put("activity",msgString);
 
-                        if (connectedServerCount > 0) {
-                            broadcast(connections.subList(0, connectedServerCount), actBroadcast.toJSONString());
+//                        if (connectedServerCount > 0) {
+//                            broadcast(connections.subList(0, connectedServerCount), actBroadcast.toJSONString());
+//                        }
+                        LinkedList<Connection> tempOtherServers = new LinkedList<>();
+                        for(Connection cons: connections){
+                            if(serverList.contains(cons.getSocket().getRemoteSocketAddress())){
+                                tempOtherServers.push(cons);
+                            }
                         }
-                        broadcastToClient(connections,msg);
+
+                        broadcast(tempOtherServers, actBroadcast.toJSONString());
+
+//                        broadcastToServer(con,msg);
+                        broadcastToClient(msg);
 
 					}else{
                         JSONObject authenticationFail = new JSONObject();
@@ -335,7 +345,10 @@ public class Control extends Thread {
                     long msg_timestamp = (long)actMsg.get("timestamp");
                     ActivityMsg temp = new ActivityMsg(msg_activity,msg_command,msg_username,msg_timestamp);
                     al.add(temp);
-					broadcastToServer(con,connections, msg);
+					broadcastToServer(con,msg);
+					if(undeliveredBoradcastMsg.size()>0){
+                        storageUndeliveredMsg(msg);
+                    }
 //					broadcastToClient(connections,modifiedMsg);
 					break;
 
@@ -563,24 +576,61 @@ public class Control extends Thread {
 
 
 
-	public synchronized void broadcastToClient(ArrayList<Connection> connections, String activityJSON){
-		for(int i = connectedServerCount;i<connections.size();i++){
-			connections.get(i).writeMsg(activityJSON);
-			log.info("Activity message broadcast to client.");
-		}
-	}
+//	public synchronized void broadcastToClient(ArrayList<Connection> connections, String activityJSON){
+//		for(int i = connectedServerCount;i<connections.size();i++){
+//			connections.get(i).writeMsg(activityJSON);
+//			log.info("Activity message broadcast to client.");
+//		}
+//	}
+public synchronized void broadcastToClient(String activityJSON) {
+//        for(int i = 0;i<connections.size();i++){
+//            connections.get(i).writeMsg(activityJSON);
+//            log.info("Activity message broadcast to client.");
 
-	public synchronized void broadcastToServer(Connection incommingCon,ArrayList<Connection> connections, String activityJSON){
-		templist = (ArrayList)connections.clone();
-        if(connectedServerCount>1){
-			templist.remove(incommingCon);
+//    LinkedList<Connection> tempClientList = new LinkedList<>();
 
-            for(int i = 0;i<connectedServerCount-1;i++){
-				templist.get(i).writeMsg(activityJSON);
-                log.info("Broadcast message to server.");
+    for (Connection cons : connections) {
+        if (clientList.contains(cons.getSocket().getRemoteSocketAddress())) {
+//            tempClientList.push(cons);
+            cons.writeMsg(activityJSON);
+            log.info("Activity message broadcast to client.");
+        }
+    }
+//    broadcast(tempClientList, activityJSON);
+//    log.info("Activity message broadcast to client.");
+}
+
+    //	public synchronized void broadcastToServer(Connection incommingCon,ArrayList<Connection> connections, String activityJSON){
+//		templist = (ArrayList)connections.clone();
+//        if(connectedServerCount>1){
+//			templist.remove(incommingCon);
+//
+//            for(int i = 0;i<connectedServerCount-1;i++){
+//				templist.get(i).writeMsg(activityJSON);
+//                log.info("Broadcast message to server.");
+//            }
+//		}
+//	}
+    public synchronized void broadcastToServer(Connection incommingCon, String activityJSON) {
+        //        templist = (LinkedList)connections.clone();
+//        for (int i = 0; i < connections.size(); i++) {
+//            connections.get(i).writeMsg(activityJSON);
+//            log.info("Broadcast message to server.");
+//        }
+        LinkedList<Connection> otherServers = new LinkedList<>();
+        for (Connection cons : connections) {
+            if (serverList.contains(cons.getSocket().getRemoteSocketAddress())) {
+                otherServers.push(cons);
+//                cons.writeMsg(activityJSON);
+//                log.info("Broadcast message to server.");
             }
-		}
-	}
+        }
+        otherServers.remove(incommingCon);
+        broadcast(otherServers, activityJSON);
+        log.info("Broadcast message to other server.");
+
+    }
+
 
     public synchronized void storageUndeliveredMsg(String newMsg) {
         if (undeliveredBoradcastMsg.size() > 0) {
