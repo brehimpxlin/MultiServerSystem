@@ -121,12 +121,14 @@ public class Connection extends Thread {
 			 * reconnect when connection closed accidentally
 			 */
 			reconnect();
-
 			Control.getInstance().connectionClosed(this);
 			in.close();
+
 		} catch (IOException e) {
 			log.error("connection "+Settings.socketAddress(socket)+" closed with exception: "+e);
+            reconnect();
 			Control.getInstance().connectionClosed(this);
+
 		}
 		open=false;
 	}
