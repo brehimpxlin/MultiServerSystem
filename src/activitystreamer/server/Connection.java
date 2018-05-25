@@ -104,17 +104,22 @@ public class Connection extends Thread {
 	}
 
     public synchronized void reconnect() {
-        if (this == Control.getInstance().getConnections().get(0)) {
+        if (this == Control.getInstance().getConnections().get(0)
+                && Settings.getLocalPort() != Settings.getRemotePort()) {
             log.info("tring to reconnect to the crashed server ...");
             Timer timer = new Timer();
-            int counter = 1;
             timer.schedule(new TimerTask() {
                 @Override
                 public void run() {
                     log.info("reconnecting ...");
                     Boolean isSuccess = Control.getInstance().initiateConnection(true);
-                    if (isSuccess)
+                    if (isSuccess) {
+                        Control.getInstance().sendAu(Control.getInstance().getConnections()
+                                .get(Control.getInstance().getConnections().size()-1), Settings.getSecret());
+                        Control.getInstance().SyncRegistration(Control.getInstance().getConnections()
+                                        .get(Control.getInstance().getConnections().size()-1));
                         timer.cancel();
+                    }
                 }
             }, 0, 5000);
         }
