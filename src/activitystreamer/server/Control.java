@@ -10,6 +10,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import java.io.IOException;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
@@ -72,7 +73,7 @@ public class Control extends Thread {
 		// make a connection to another server if remote hostname is supplied
 		if(Settings.getRemoteHostname()!=null){
 			try {
-				outgoingConnection(new Socket(Settings.getRemoteHostname(),Settings.getRemotePort()));
+			    outgoingConnection(new Socket(Settings.getRemoteHostname(),Settings.getRemotePort(), Inet4Address.getByName("localhost"),Settings.getLocalPort()+50000));
 				if (isReconnection) {
                     SyncRegistration(connections.get(connections.size()-1));
                 }
@@ -147,7 +148,7 @@ public class Control extends Thread {
                         //Do redirect.
 
                         if(serverLoads != null && serverLoads.size() > 0){
-                            log.info("Number of connected server: "+connectedServerCount);
+
                             JSONObject redirMsg = redirect();
                             if(redirMsg.containsKey("hostname")){
                                 con.writeMsg(redirMsg.toJSONString());
@@ -180,8 +181,10 @@ public class Control extends Thread {
 
                 case "AUTHENTICATE":
 					if(doAu(con,(String)clientMsg.get("secret"))){
-                        connectedServerCount += 1;
-                        serverList.add(con.getSocket().getRemoteSocketAddress());
+                        if(!serverList.contains(con.getSocket().getRemoteSocketAddress())){
+                            serverList.add(con.getSocket().getRemoteSocketAddress());
+                        }
+
 
                         //If the connected server is authenticated, send registration info to it.
                         SyncRegistration(con);
@@ -201,7 +204,7 @@ public class Control extends Thread {
                     }
                     username = (String)clientMsg.get("username");
                     secret = (String)clientMsg.get("secret");
-                    if (connectedServerCount <= 1 && registration.containsKey(username)) {
+                    if (serverList.size() <= 1 && registration.containsKey(username)) {
 						sendLockResult(con, username, secret, false);
 						log.info("Lock denied");
 					} else if (connectedServerCount <= 1 && !registration.containsKey(username)) {
@@ -425,14 +428,14 @@ public class Control extends Thread {
                         }
                         //Forward this message to other server.
                         LinkedList<Connection> forwardServers = new LinkedList<>();
-                        for(SocketAddress server: serverList){
-                            for(Connection cons: connections){
-                                if(cons.getSocket().getRemoteSocketAddress().equals(server)){
-                                    forwardServers.push(cons);
 
-                                }
+                        for(Connection cons: connections){
+                            if(serverList.contains(cons.getSocket().getRemoteSocketAddress())){
+                                forwardServers.push(cons);
+
                             }
                         }
+
                         forwardServers.remove(con);
 
                         broadcast(forwardServers, msg);
@@ -449,15 +452,23 @@ public class Control extends Thread {
                         JSONObject redirMsg = redirect();
                         if(redirMsg.containsKey("hostname")){
                             SocketAddress client = clientList.pop();
+                            Connection conToClose = null;
                             for(Connection cons: connections){
                                 if(cons.getSocket().getRemoteSocketAddress().equals(client)){
                                     cons.writeMsg(redirMsg.toJSONString());
                                     log.info("Redirect user "+client+" to "+redirMsg.get("hostname")+":"+redirMsg.get("port")+".");
-                                    cons.closeCon();
-                                    connectionClosed(cons);
-                                    clientList.remove(client);
+
+                                    conToClose = cons;
+
+
                                 }
                             }
+                            if(conToClose != null){
+                                connectionClosed(conToClose);
+
+                            }
+
+
 
                             break;
                         }
@@ -705,13 +716,13 @@ public class Control extends Thread {
         announceInfo.put("hostname", Settings.getLocalHostname());
         announceInfo.put("port", Settings.getLocalPort());
         LinkedList<Connection> otherServers = new LinkedList<>();
-        for(SocketAddress server: serverList){
-            for(Connection cons: connections){
-                if(cons.getSocket().getRemoteSocketAddress().equals(server)){
-                    otherServers.push(cons);
-                }
+
+        for(Connection cons: connections){
+            if(serverList.contains(cons.getSocket().getRemoteSocketAddress())){
+                otherServers.push(cons);
             }
         }
+
         broadcast(otherServers, announceInfo.toJSONString());
     }
 
@@ -753,7 +764,8 @@ public class Control extends Thread {
 	 * The connection has been closed by the other party.
 	 */
 	public synchronized void connectionClosed(Connection con){
-		if(!term) connections.remove(con);
+//		if(!term)
+		    connections.remove(con);
 	}
 
 	/*
@@ -810,10 +822,10 @@ public class Control extends Thread {
 //				term=doActivity();
 
 			}
-			if(connectedServerCount >= 1){
+			if(serverList.size() >= 1){
 
 			    try{
-//                    announce();
+                    announce();
 
                     processActivityToClient();
                 }
