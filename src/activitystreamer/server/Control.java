@@ -326,7 +326,11 @@ public class Control extends Thread {
 					log.info("Activity message received from client.");
 					username = (String)clientMsg.get("username");
 					secret = (String)clientMsg.get("secret");
+					if(username==null){
+                        username="anonymous";
+                    }
                     if((username.equals("anonymous")||checkCon(con,"CLIENT"))){
+//
                         JSONObject actBroadcast = new JSONObject();
 
                         JSONParser parser2 = new JSONParser();
@@ -776,6 +780,8 @@ public class Control extends Thread {
                 currentCon.writeMsg(temp.toJSONString());
 
             }
+            boradcastActivity.clear();
+            messageToClient.clear();
         }
     }
 
