@@ -116,7 +116,7 @@ public class Connection extends Thread {
                 crashServer = getSender();
             }
 			Control.getInstance().initCrashServer(crashServer);
-
+			log.info("mother fucking");
 			/*
 			 * reconnect when connection closed accidentally
 			 */
@@ -146,8 +146,7 @@ public class Connection extends Thread {
 	}
 
     public synchronized void reconnect() {
-        if (this == Control.getInstance().getConnections().get(0)
-                && Settings.getLocalPort() != Settings.getRemotePort()) {
+        if (!Settings.getIsRootServer() && Settings.getLocalPort() != Settings.getRemotePort()) {
             log.info("tring to reconnect to the crashed server ...");
             Timer timer = new Timer();
             timer.schedule(new TimerTask() {
