@@ -632,7 +632,7 @@ public class Control extends Thread {
                     msgToClient.put("activity", msg_act);
                     msgToClient.put("command", msg_cmd);
                     msgToClient.put("username", msg_uname);
-                    msgToClient.put("id", msg_id);
+//                    msgToClient.put("id", msg_id);
 //                msgToClient.put("timestamp",msg_time);
                     if(messageToClient.size() == 0 || !messageToClient.contains(al.get(j))) {
                         tempClientList.get(i).writeMsg(msgToClient.toString());
