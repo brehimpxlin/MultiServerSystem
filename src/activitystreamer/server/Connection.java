@@ -116,7 +116,6 @@ public class Connection extends Thread {
                 crashServer = getSender();
             }
 			Control.getInstance().initCrashServer(crashServer);
-			log.info("mother fucking");
 			/*
 			 * reconnect when connection closed accidentally
 			 */
