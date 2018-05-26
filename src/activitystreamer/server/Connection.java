@@ -127,7 +127,10 @@ public class Connection extends Thread {
 
 		} catch (IOException e) {
 			log.error("connection "+Settings.socketAddress(socket)+" closed with exception: "+e);
-            reconnect();
+
+            if (Control.getInstance().getServerList().contains(this)) {
+                reconnect();
+            }
 			Control.getInstance().connectionClosed(this);
 
 		}
