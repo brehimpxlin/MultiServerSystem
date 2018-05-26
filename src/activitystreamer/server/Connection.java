@@ -8,9 +8,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -108,27 +106,29 @@ public class Connection extends Thread {
 			}
 
 			log.debug("connection closed to "+Settings.socketAddress(socket));
-
-			String crashServer;
-			if(Control.getInstance().getServerID().equals(getSender())){
-                crashServer = getReceiver();
-            }else{
-                crashServer = getSender();
-            }
-			Control.getInstance().initCrashServer(crashServer);
+			
 			/*
 			 * reconnect when connection closed accidentally
 			 */
 			this.closeCon();
-			reconnect();
+			reconnect(0);
 			Control.getInstance().connectionClosed(this);
 			in.close();
 
 		} catch (IOException e) {
 			log.error("connection "+Settings.socketAddress(socket)+" closed with exception: "+e);
-
-            if (Control.getInstance().getServerList().contains(this)) {
-                reconnect();
+			if(e.toString().contains("Operation timed out")) {
+				HashMap smap = Control.getInstance().getServerMap();
+				String sid = null;
+				for (Object server : smap.keySet()) {
+					if (smap.get(server).equals(this.socket.getRemoteSocketAddress())) {
+						sid = (String) server;
+					}
+				}
+				Control.timeoutServers.add(sid);
+			}
+            if (Control.getInstance().getOtherServers().contains(this)) {
+                reconnect(1);
             }
 			Control.getInstance().connectionClosed(this);
 
@@ -144,7 +144,7 @@ public class Connection extends Thread {
 		return open;
 	}
 
-    public synchronized void reconnect() {
+    public synchronized void reconnect(int num) {
         if (!Settings.getIsRootServer() && Settings.getLocalPort() != Settings.getRemotePort()) {
             log.info("tring to reconnect to the crashed server ...");
             Timer timer = new Timer();
@@ -159,6 +159,13 @@ public class Connection extends Thread {
                         Control.getInstance().SyncRegistration(Control.getInstance().getConnections()
                                         .get(Control.getInstance().getConnections().size()-1));
                         timer.cancel();
+						if(num == 1){
+							Control.getInstance().reBoradcastMsgToTimeoutServer(Control.getInstance().getConnections().get(Control.getInstance().getConnections().size() - 1));
+						}else {
+
+							Control.getInstance().reBoradcastMsgToCrashServer(Control.getInstance().getConnections().get(Control.getInstance().getConnections().size() - 1), Settings.getRemoteHostname() + ":" + Settings.getRemotePort());
+						}
+
                     }
                 }
             }, 0, 5000);
