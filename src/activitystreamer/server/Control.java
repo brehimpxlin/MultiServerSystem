@@ -78,12 +78,7 @@ public class Control extends Thread {
 		// make a connection to another server if remote hostname is supplied
 		if(Settings.getRemoteHostname()!=null){
 			try {
-//			    Socket socket = new Socket();
-//                socket.setReuseAddress(true);
-//                socket.setSoLinger(true,0);
-//                System.out.println(socket.getReuseAddress());
-//                socket.bind(new InetSocketAddress("localhost", Settings.getLocalPort()+50000));
-//                socket.connect(new InetSocketAddress(Settings.getRemoteHostname(), Settings.getRemotePort()));
+//
                 Socket socket = new Socket(Settings.getRemoteHostname(),Settings.getRemotePort());
                 outgoingConnection(socket);
             } catch (IOException e) {
@@ -191,10 +186,6 @@ public class Control extends Thread {
                 case "AUTHENTICATE":
 					if(doAu(con,(String)clientMsg.get("secret"))){
 					    serverMap.put(clientMsg.get("id"), con.getSocket().getRemoteSocketAddress());
-//                        if(!serverList.contains(con.getSocket().getRemoteSocketAddress())){
-//                            serverList.add(con.getSocket().getRemoteSocketAddress());
-//                        }
-
 
                         //If the connected server is authenticated, send registration info to it.
 
@@ -258,7 +249,7 @@ public class Control extends Thread {
                         registerClient.writeMsg(registerSuccess(clientUsername, true));
                         registration.put(username,secret);
                         lockAllowedCount = 0;
-                    } else if (!isRegistering && lockAllowedCount == connectedServerCount - 1){
+                    } else if (!isRegistering && lockAllowedCount == serverMap.size() - 1){
 						sendLockResult(requestServer, username, secret, true);
 						registration.put(username,secret);
 						lockAllowedCount = 0;
@@ -301,8 +292,8 @@ public class Control extends Thread {
                         actBroadcast.put("command","ACTIVITY_BROADCAST");
                         actBroadcast.put("activity",msgString);
 
-//                        if (connectedServerCount > 0) {
-//                            broadcast(connections.subList(0, connectedServerCount), actBroadcast.toJSONString());
+//                        if (serverMap.size() > 0) {
+//                            broadcast(connections.subList(0, serverMap.size()), actBroadcast.toJSONString());
 //                        }
                         LinkedList<Connection> tempOtherServers = new LinkedList<>();
                         for(Connection cons: connections){
@@ -407,13 +398,6 @@ public class Control extends Thread {
                         }
                         //Forward this message to other server.
                         LinkedList<Connection> forwardServers = new LinkedList<>();
-
-//                        for(Connection cons: connections){
-//                            if(serverList.contains(cons.getSocket().getRemoteSocketAddress())){
-//                                forwardServers.push(cons);
-//
-//                            }
-//                        }
                         for(Connection cons: connections){
                             if(serverMap.values().contains(cons.getSocket().getRemoteSocketAddress())){
                                 forwardServers.push(cons);
@@ -462,7 +446,7 @@ public class Control extends Thread {
 
 
                 case "AUTHENTICATION_FAIL":
-                    connectedServerCount = connectedServerCount - 1;
+
                     con.closeCon();
                     connectionClosed(con);
                     this.setTerm(true);
@@ -531,7 +515,7 @@ public class Control extends Thread {
 
         for(HashMap server : serverLoads){
             if(clientList.size() - (long)server.get("load") >= 2){
-//                log.info(this.getConnections().size()+", "+ connectedServerCount);
+//                log.info(this.getConnections().size()+", "+ serverMap.size());
                 String redirHost = server.get("hostname").toString();
                 String redirPort = server.get("port").toString();
                 redirMsg.put("command", "REDIRECT");
@@ -557,9 +541,9 @@ public class Control extends Thread {
 		if (registration.containsKey(username)) {
 			con.writeMsg(registerSuccess(username,false));
             return false;
-		} else if (connectedServerCount > 0) {
-		       sendLockRequest(connections.subList(0, connectedServerCount), username, secret);
-		       log.info("test: " + connections.subList(0,connectedServerCount));
+		} else if (serverMap.size() > 0) {
+		       sendLockRequest(connections.subList(0, serverMap.size()), username, secret);
+		       log.info("test: " + connections.subList(0,serverMap.size()));
 		       registerClient = con;
 		       clientUsername = username;
 		       return true;
@@ -610,7 +594,7 @@ public class Control extends Thread {
 
 
 //	public synchronized void broadcastToClient(ArrayList<Connection> connections, String activityJSON){
-//		for(int i = connectedServerCount;i<connections.size();i++){
+//		for(int i = serverMap.size();i<connections.size();i++){
 //			connections.get(i).writeMsg(activityJSON);
 //			log.info("Activity message broadcast to client.");
 //		}
@@ -635,10 +619,10 @@ public synchronized void broadcastToClient(String activityJSON) {
 
     //	public synchronized void broadcastToServer(Connection incommingCon,ArrayList<Connection> connections, String activityJSON){
 //		templist = (ArrayList)connections.clone();
-//        if(connectedServerCount>1){
+//        if(serverMap.size()>1){
 //			templist.remove(incommingCon);
 //
-//            for(int i = 0;i<connectedServerCount-1;i++){
+//            for(int i = 0;i<serverMap.size()-1;i++){
 //				templist.get(i).writeMsg(activityJSON);
 //                log.info("Broadcast message to server.");
 //            }
@@ -757,8 +741,8 @@ public synchronized void broadcastToClient(String activityJSON) {
 		lockResult.put("username", username);
 		lockResult.put("secret", secret);
 		String lockResultJSON = lockResult.toJSONString();
-		if (connectedServerCount > 1) {
-			List<Connection> otherServers = connections.subList(0, connectedServerCount);
+		if (serverMap.size() > 1) {
+			List<Connection> otherServers = connections.subList(0, serverMap.size());
 			otherServers.remove(fromCon);
 			broadcast(otherServers, lockResultJSON);
 		}
@@ -795,12 +779,6 @@ public synchronized void broadcastToClient(String activityJSON) {
         announceInfo.put("hostname", Settings.getLocalHostname());
         announceInfo.put("port", Settings.getLocalPort());
         LinkedList<Connection> otherServers = new LinkedList<>();
-
-//        for(Connection cons: connections){
-//            if(serverList.contains(cons.getSocket().getRemoteSocketAddress())){
-//                otherServers.push(cons);
-//            }
-//        }
         for(Connection cons: connections){
             if(serverMap.values().contains(cons.getSocket().getRemoteSocketAddress())){
                 otherServers.push(cons);
@@ -818,7 +796,7 @@ public synchronized void broadcastToClient(String activityJSON) {
         String authenJSON = authenMsg.toJSONString();
         log.info("Authenticate send to: "+con.getSocket().getRemoteSocketAddress());
         serverMap.put(Settings.getRemoteHostname()+":"+Settings.getRemotePort(), con.getSocket().getRemoteSocketAddress());
-//        serverList.add(con.getSocket().getRemoteSocketAddress());
+
         try {
             con.writeMsg(authenJSON);
         } catch (Exception e) {
@@ -910,9 +888,7 @@ public synchronized void broadcastToClient(String activityJSON) {
 			if(serverMap.size() >= 1){
 
 			    try{
-                    for(Object value:serverMap.values()){
-                        log.info(value);
-                    }
+
 			        announce();
 
                     processActivityToClient();
