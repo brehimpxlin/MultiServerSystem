@@ -109,13 +109,8 @@ public class Connection extends Thread {
 
 			log.debug("connection closed to "+Settings.socketAddress(socket));
 
-			String crashServer;
-			if(Control.getInstance().getServerID().equals(getSender())){
-                crashServer = getReceiver();
-            }else{
-                crashServer = getSender();
-            }
-			Control.getInstance().initCrashServer(crashServer);
+//			String crashServer = Settings.getRemoteHostname()+":"+Settings.getRemotePort();
+//			Control.getInstance().initCrashServer(crashServer);
 
 			/*
 			 * reconnect when connection closed accidentally
@@ -158,6 +153,8 @@ public class Connection extends Thread {
                         Control.getInstance().SyncRegistration(Control.getInstance().getConnections()
                                         .get(Control.getInstance().getConnections().size()-1));
                         timer.cancel();
+
+						Control.getInstance().reBoradcastMsgToCrashServer(Control.getInstance().getConnections().get(Control.getInstance().getConnections().size()-1),Settings.getRemoteHostname()+":"+Settings.getRemotePort());
                     }
                 }
             }, 0, 5000);

@@ -22,7 +22,7 @@ public class Control extends Thread {
 	private static Map registration = new HashMap();
     //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
 	private static List<HashMap<String, Integer>> serverLoads = new LinkedList<>();
-	private static LinkedList<SocketAddress> serverList = new LinkedList<>();
+//	private static LinkedList<SocketAddress> serverList = new LinkedList<>();
     private static LinkedList<SocketAddress> clientList = new LinkedList<>();
     private static HashMap serverMap = new HashMap();
     private static String serverID = Settings.getLocalHostname()+":"+Settings.getLocalPort();
@@ -88,6 +88,11 @@ public class Control extends Thread {
                 outgoingConnection(socket);
             } catch (IOException e) {
 				log.error("failed to make connection to "+Settings.getRemoteHostname()+":"+Settings.getRemotePort()+" :"+e);
+                String crashServer = Settings.getRemoteHostname()+":"+Settings.getRemotePort();
+//                log.info("Contains current crash server? "+(undeliveredBoradcastMsg.containsKey(crashServer)));
+                if(!undeliveredBoradcastMsg.containsKey(crashServer)) {
+                    initCrashServer(crashServer);
+                }
 				if (!isReconnection)
 				System.exit(-1);
 				return false;
@@ -197,14 +202,14 @@ public class Control extends Thread {
 
 
                         //If the connected server is authenticated, send registration info to it.
-
+//                        reBoradcastMsgToCrashServer(con);
                         if (registration.size() != 0) {
                             SyncRegistration(con);
                         }
 
                         con.setSender((String)clientMsg.get("id"));
                         con.setReceiver(serverID);
-                        reBoradcastMsgToCrashServer(con);
+                        reBoradcastMsgToCrashServer(con,(String)clientMsg.get("id"));
 					}else{
 					    con.closeCon();
 					    connectionClosed(con);
@@ -310,8 +315,13 @@ public class Control extends Thread {
                                 tempOtherServers.push(cons);
                             }
                         }
-                        serverList.remove(con);
+                        tempOtherServers.remove(con);
                         broadcast(tempOtherServers, actBroadcast.toJSONString());
+
+                        if(undeliveredBoradcastMsg.size()>0){
+                            storageUndeliveredMsg(actBroadcast.toJSONString());
+                        }
+
 
 //                        broadcastToServer(con,msg);
                         broadcastToClient(msg);
@@ -667,15 +677,20 @@ public synchronized void broadcastToClient(String activityJSON) {
 
     public synchronized void storageUndeliveredMsg(String newMsg) {
         if (undeliveredBoradcastMsg.size() > 0) {
-            for (int i = 0; i < undeliveredBoradcastMsg.size(); i++) {
-                Iterator it = undeliveredBoradcastMsg.entrySet().iterator();
-                while (it.hasNext()) {
-                    Map.Entry entry = (Map.Entry) it.next();
-                    String key = (String) entry.getKey();
-                    ArrayList<String> value = (ArrayList<String>) entry.getValue();
-                    value.add(newMsg);
-                    undeliveredBoradcastMsg.put(key, value);
-                }
+            Iterator it = undeliveredBoradcastMsg.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry entry = (Map.Entry) it.next();
+                String key = (String) entry.getKey();
+                log.info("Storage undelivered msg for "+key+".");
+                log.info("Msg :"+newMsg);
+                ArrayList<String> value = (ArrayList<String>) entry.getValue();
+//                if(entry.getValue()==null) {
+//                    ArrayList<String> value = (ArrayList<String>) entry.getValue();
+//                }else{
+//
+//                }
+                value.add(newMsg);
+                undeliveredBoradcastMsg.put(key, value);
             }
         }
     }
@@ -685,27 +700,57 @@ public synchronized void broadcastToClient(String activityJSON) {
         undeliveredBoradcastMsg.put(crashServer, tempAl);
     }
 
-    public synchronized void reBoradcastMsgToCrashServer(Connection currentCon) {
-	    if(undeliveredBoradcastMsg.size()>0) {
-            String remoteServerID;
-            if (serverID.equals(currentCon.getSender())) {
-                remoteServerID = currentCon.getReceiver();
-            } else {
-                remoteServerID = currentCon.getReceiver();
-            }
-            boolean crashed = undeliveredBoradcastMsg.containsKey(remoteServerID);
-            if (crashed) {
-                if (undeliveredBoradcastMsg.get(remoteServerID).size() > 0) {
-                    for (int i = 0; i < undeliveredBoradcastMsg.get(remoteServerID).size(); i++) {
-                        ArrayList<String> tempAl = undeliveredBoradcastMsg.get(i);
-                        for (int j = 0; j < tempAl.size(); j++) {
-                            currentCon.writeMsg(tempAl.get(j));
-                        }
+    public synchronized void showUndeliveredMsg(){
+        if(undeliveredBoradcastMsg.size()>0) {
+            Iterator iter = undeliveredBoradcastMsg.entrySet().iterator();
+            while (iter.hasNext()) {
+                Map.Entry entry = (Map.Entry) iter.next();
+                String key = (String) entry.getKey();
+                log.info("Host id: " + key);
+                ArrayList<String> val = (ArrayList<String>) entry.getValue();
+                if(val.size()>0) {
+                    for (int i = 0; i < val.size(); i++) {
+                        log.info("Message (" + (i + 1) + ") th :" + val.get(i));
                     }
+                }else{
+                    log.info("No undelivered msg for host: " + key);
                 }
-
             }
-            undeliveredBoradcastMsg.remove(remoteServerID);
+        }else{
+            log.info("No undelivered msg in ArrayList");
+        }
+    }
+
+    public synchronized void reBoradcastMsgToCrashServer(Connection currentCon,String targetServer) {
+        log.info("------------------------------------------");
+	    if(undeliveredBoradcastMsg.size()>0) {
+	        log.info("++++++++++++++++++++++++++++++++++++++++++");
+//            String remoteServerID;
+//            if (serverID.equals(currentCon.getSender())) {
+//                targetServer = currentCon.getReceiver();
+//            } else {
+//                targetServer = currentCon.getReceiver();
+//            }
+            log.info("Preparing to deliver msg to server "+targetServer);
+            boolean crashed = undeliveredBoradcastMsg.containsKey(targetServer);
+            if (crashed) {
+                if (undeliveredBoradcastMsg.get(targetServer).size() > 0) {
+                    for (int i = 0; i < undeliveredBoradcastMsg.get(targetServer).size(); i++) {
+                        currentCon.writeMsg(undeliveredBoradcastMsg.get(targetServer).get(i));
+//                        if (undeliveredBoradcastMsg.get(i) != null) {
+//                            ArrayList<String> tempAl = undeliveredBoradcastMsg.get(i);
+//                            for (int j = 0; j < tempAl.size(); j++) {
+//                                currentCon.writeMsg(tempAl.get(j));
+//                            }
+//                        }else{
+//                            log.info("No msg for host: "+targetServer);
+//                        }
+                    }
+                }else{
+                    log.info("No msg in buffer.");
+                }
+            }
+            undeliveredBoradcastMsg.remove(targetServer);
         }
     }
 
@@ -889,7 +934,8 @@ public synchronized void broadcastToClient(String activityJSON) {
         if(Settings.getRemoteHostname() != null){
             String serverSecret = Settings.getSecret();
             sendAu(connections.get(0), serverSecret);
-
+//            log.info("++_+_+_+_+_+_+_+_+_+_+_+"+connections.get(0));
+//            reBoradcastMsgToCrashServer(connections.get(0));
         }
 	    log.info("using activity interval of "+Settings.getActivityInterval()+" milliseconds");
 		while(!term){
@@ -914,7 +960,7 @@ public synchronized void broadcastToClient(String activityJSON) {
                         log.info(value);
                     }
 			        announce();
-
+                    showUndeliveredMsg();
                     processActivityToClient();
                 }
                 catch (Exception e){
