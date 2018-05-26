@@ -101,12 +101,7 @@ public class Control extends Thread {
 		// make a connection to another server if remote hostname is supplied
 		if(Settings.getRemoteHostname()!=null){
 			try {
-//			    Socket socket = new Socket();
-//                socket.setReuseAddress(true);
-//                socket.setSoLinger(true,0);
-//                System.out.println(socket.getReuseAddress());
-//                socket.bind(new InetSocketAddress("localhost", Settings.getLocalPort()+50000));
-//                socket.connect(new InetSocketAddress(Settings.getRemoteHostname(), Settings.getRemotePort()));
+//
                 Socket socket = new Socket(Settings.getRemoteHostname(),Settings.getRemotePort());
                 outgoingConnection(socket);
             } catch (IOException e) {
@@ -134,6 +129,7 @@ public class Control extends Thread {
             }
         }
     }
+    
 
     public boolean checkCon(Connection con, String type){
         switch (type){
@@ -161,7 +157,7 @@ public class Control extends Thread {
 	 * Processing incoming messages from the connection.
 	 * Return true if the connection should close.
 	 */
-	public synchronized boolean process(Connection con,String msg){
+	public boolean process(Connection con,String msg){
 	    
         JSONParser parser = new JSONParser();
 	    try{
@@ -219,10 +215,6 @@ public class Control extends Thread {
                 case "AUTHENTICATE":
 					if(doAu(con,(String)clientMsg.get("secret"))){
 					    serverMap.put(clientMsg.get("id"), con.getSocket().getRemoteSocketAddress());
-//                        if(!serverList.contains(con.getSocket().getRemoteSocketAddress())){
-//                            serverList.add(con.getSocket().getRemoteSocketAddress());
-//                        }
-
 
                         //If the connected server is authenticated, send registration info to it.
 //                        reBoradcastMsgToCrashServer(con);
@@ -329,8 +321,8 @@ public class Control extends Thread {
                         actBroadcast.put("command","ACTIVITY_BROADCAST");
                         actBroadcast.put("activity",msgString);
 
-//                        if (connectedServerCount > 0) {
-//                            broadcast(connections.subList(0, connectedServerCount), actBroadcast.toJSONString());
+//                        if (serverMap.size() > 0) {
+//                            broadcast(connections.subList(0, serverMap.size()), actBroadcast.toJSONString());
 //                        }
                         LinkedList<Connection> tempOtherServers = new LinkedList<>();
                         for(Connection cons: connections){
@@ -350,15 +342,6 @@ public class Control extends Thread {
                         broadcastToClient(msg);
 
 					}else{
-//                        JSONObject authenticationFail = new JSONObject();
-//                        authenticationFail.put("command","AUTHENTICATION_FAIL");
-//                        if(!username.equals(Settings.getUsername())){
-//                            authenticationFail.put("info","the supplied username is incorrect: "+username);
-//                        }else if (!secret.equals(Settings.getSecret())){
-//                            authenticationFail.put("info","the supplied secret is incorrect: "+secret);
-//                        }else{
-//                            authenticationFail.put("info","invalid username and secret. ");
-//                        }
                         JSONObject authenticationFail = new JSONObject();
                         authenticationFail.put("command","AUTHENTICATION_FAIL");
                         authenticationFail.put("info","invalid username or secret. ");
@@ -440,13 +423,6 @@ public class Control extends Thread {
                         }
                         //Forward this message to other server.
                         LinkedList<Connection> forwardServers = new LinkedList<>();
-
-//                        for(Connection cons: connections){
-//                            if(serverList.contains(cons.getSocket().getRemoteSocketAddress())){
-//                                forwardServers.push(cons);
-//
-//                            }
-//                        }
                         for(Connection cons: connections){
                             if(serverMap.values().contains(cons.getSocket().getRemoteSocketAddress())){
                                 forwardServers.push(cons);
@@ -495,7 +471,7 @@ public class Control extends Thread {
 
 
                 case "AUTHENTICATION_FAIL":
-                    connectedServerCount = connectedServerCount - 1;
+
                     con.closeCon();
                     connectionClosed(con);
                     this.setTerm(true);
@@ -566,7 +542,7 @@ public class Control extends Thread {
 
         for(HashMap server : serverLoads){
             if(clientList.size() - (long)server.get("load") >= 2){
-//                log.info(this.getConnections().size()+", "+ connectedServerCount);
+//                log.info(this.getConnections().size()+", "+ serverMap.size());
                 String redirHost = server.get("hostname").toString();
                 String redirPort = server.get("port").toString();
                 redirMsg.put("command", "REDIRECT");
@@ -593,8 +569,9 @@ public class Control extends Thread {
 			con.writeMsg(registerSuccess(username,false));
             return false;
 		} else if (serverMap.size() > 0) {
-		       log.info("**********");
+
 		       sendLockRequest(getOtherServers(), username, secret);
+
 		       registerClient = con;
 		       clientUsername = username;
 		       return true;
@@ -642,55 +619,23 @@ public class Control extends Thread {
         }
     }
 
-
-
-//	public synchronized void broadcastToClient(ArrayList<Connection> connections, String activityJSON){
-//		for(int i = connectedServerCount;i<connections.size();i++){
-//			connections.get(i).writeMsg(activityJSON);
-//			log.info("Activity message broadcast to client.");
-//		}
-//	}
     public synchronized void broadcastToClient(String activityJSON) {
-//        for(int i = 0;i<connections.size();i++){
-//            connections.get(i).writeMsg(activityJSON);
-//            log.info("Activity message broadcast to client.");
 
-//    LinkedList<Connection> tempClientList = new LinkedList<>();
-
-    for (Connection cons : connections) {
-        if (clientList.contains(cons.getSocket().getRemoteSocketAddress())) {
-//            tempClientList.push(cons);
-            cons.writeMsg(activityJSON);
-            log.info("Activity message broadcast to client.");
+        for (Connection cons : connections) {
+            if (clientList.contains(cons.getSocket().getRemoteSocketAddress())) {
+                //            tempClientList.push(cons);
+                cons.writeMsg(activityJSON);
+                log.info("Activity message broadcast to client.");
+            }
         }
     }
-//    broadcast(tempClientList, activityJSON);
-//    log.info("Activity message broadcast to client.");
-}
 
-    //	public synchronized void broadcastToServer(Connection incommingCon,ArrayList<Connection> connections, String activityJSON){
-//		templist = (ArrayList)connections.clone();
-//        if(connectedServerCount>1){
-//			templist.remove(incommingCon);
-//
-//            for(int i = 0;i<connectedServerCount-1;i++){
-//				templist.get(i).writeMsg(activityJSON);
-//                log.info("Broadcast message to server.");
-//            }
-//		}
-//	}
     public synchronized void broadcastToServer(Connection incommingCon, String activityJSON) {
-        //        templist = (LinkedList)connections.clone();
-//        for (int i = 0; i < connections.size(); i++) {
-//            connections.get(i).writeMsg(activityJSON);
-//            log.info("Broadcast message to server.");
-//        }
+
         LinkedList<Connection> otherServers = new LinkedList<>();
         for (Connection cons : connections) {
             if (serverMap.values().contains(cons.getSocket().getRemoteSocketAddress())) {
                 otherServers.push(cons);
-//                cons.writeMsg(activityJSON);
-//                log.info("Broadcast message to server.");
             }
         }
         otherServers.remove(incommingCon);
@@ -709,11 +654,6 @@ public class Control extends Thread {
                 log.info("Storage undelivered msg for "+key+".");
                 log.info("Msg :"+newMsg);
                 ArrayList<String> value = (ArrayList<String>) entry.getValue();
-//                if(entry.getValue()==null) {
-//                    ArrayList<String> value = (ArrayList<String>) entry.getValue();
-//                }else{
-//
-//                }
                 value.add(newMsg);
                 undeliveredBoradcastMsg.put(key, value);
             }
@@ -747,29 +687,13 @@ public class Control extends Thread {
     }
 
     public synchronized void reBoradcastMsgToCrashServer(Connection currentCon,String targetServer) {
-        log.info("------------------------------------------");
 	    if(undeliveredBoradcastMsg.size()>0) {
-	        log.info("++++++++++++++++++++++++++++++++++++++++++");
-//            String remoteServerID;
-//            if (serverID.equals(currentCon.getSender())) {
-//                targetServer = currentCon.getReceiver();
-//            } else {
-//                targetServer = currentCon.getReceiver();
-//            }
             log.info("Preparing to deliver msg to server "+targetServer);
             boolean crashed = undeliveredBoradcastMsg.containsKey(targetServer);
             if (crashed) {
                 if (undeliveredBoradcastMsg.get(targetServer).size() > 0) {
                     for (int i = 0; i < undeliveredBoradcastMsg.get(targetServer).size(); i++) {
                         currentCon.writeMsg(undeliveredBoradcastMsg.get(targetServer).get(i));
-//                        if (undeliveredBoradcastMsg.get(i) != null) {
-//                            ArrayList<String> tempAl = undeliveredBoradcastMsg.get(i);
-//                            for (int j = 0; j < tempAl.size(); j++) {
-//                                currentCon.writeMsg(tempAl.get(j));
-//                            }
-//                        }else{
-//                            log.info("No msg for host: "+targetServer);
-//                        }
                     }
                 }else{
                     log.info("No msg in buffer.");
@@ -828,6 +752,7 @@ public class Control extends Thread {
 		lockResult.put("secret", secret);
 		String lockResultJSON = lockResult.toJSONString();
 		if (serverMap.size() > 1) {
+
 			//List<Connection> otherServers = connections.subList(0, connectedServerCount);
 			getOtherServers().remove(fromCon);
 			broadcast(otherServers, lockResultJSON);
@@ -865,12 +790,6 @@ public class Control extends Thread {
         announceInfo.put("hostname", Settings.getLocalHostname());
         announceInfo.put("port", Settings.getLocalPort());
         LinkedList<Connection> otherServers = new LinkedList<>();
-
-//        for(Connection cons: connections){
-//            if(serverList.contains(cons.getSocket().getRemoteSocketAddress())){
-//                otherServers.push(cons);
-//            }
-//        }
         for(Connection cons: connections){
             if(serverMap.values().contains(cons.getSocket().getRemoteSocketAddress())){
                 otherServers.push(cons);
@@ -888,7 +807,7 @@ public class Control extends Thread {
         String authenJSON = authenMsg.toJSONString();
         log.info("Authenticate send to: "+con.getSocket().getRemoteSocketAddress());
         serverMap.put(Settings.getRemoteHostname()+":"+Settings.getRemotePort(), con.getSocket().getRemoteSocketAddress());
-//        serverList.add(con.getSocket().getRemoteSocketAddress());
+
         try {
             con.writeMsg(authenJSON);
         } catch (Exception e) {
@@ -944,23 +863,13 @@ public class Control extends Thread {
 		return c;
 	}
 
-//    public synchronized long getTimeRange(long time){
-//        long nowTime = System.currentTimeMillis();
-//        long TotalTime = nowTime - time;
-//        return TotalTime;
-//    }
 
-    public void showList(){
-
-    }
 
     @Override
 	public void run(){
         if(Settings.getRemoteHostname() != null){
             String serverSecret = Settings.getSecret();
             sendAu(connections.get(0), serverSecret);
-//            log.info("++_+_+_+_+_+_+_+_+_+_+_+"+connections.get(0));
-//            reBoradcastMsgToCrashServer(connections.get(0));
         }
 	    log.info("using activity interval of "+Settings.getActivityInterval()+" milliseconds");
 		while(!term){
@@ -985,8 +894,6 @@ public class Control extends Thread {
                     for(Object value:serverMap.values()){
                         log.info(value);
                     }
-
-
 			        announce();
                     showUndeliveredMsg();
                     processActivityToClient();
