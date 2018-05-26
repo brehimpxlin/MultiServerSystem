@@ -75,6 +75,10 @@ public class Control extends Thread {
 		start();
 	}
 
+	public static LinkedList<SocketAddress> getServerList() {
+	    return serverList;
+    }
+
 	public boolean initiateConnection(boolean isReconnection){
 		// make a connection to another server if remote hostname is supplied
 		if(Settings.getRemoteHostname()!=null){
@@ -869,7 +873,7 @@ public synchronized void broadcastToClient(String activityJSON) {
 			if(connectedServerCount >= 1){
 
 			    try{
-                    announce();
+                    //announce();
                     processActivityToClient();
                 }
                 catch (Exception e){
