@@ -762,9 +762,9 @@ public class Control extends Thread {
 //                actBroadcast.put("activity",msgString);
 
                 temp.put("id",tempMsg.getId());
-                temp.put("command",tempMsg.getId());
-                temp.put("activity",tempMsg.getId());
-                temp.put("timestamp",tempMsg.getId());
+                temp.put("command",tempMsg.getCommand());
+                temp.put("activity",tempMsg.getActivity());
+                temp.put("timestamp",tempMsg.getTimestamp());
 
 //                temp.put("id",tempMsg.getId());
                 currentCon.writeMsg(temp.toJSONString());
