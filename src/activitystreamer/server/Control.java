@@ -43,6 +43,11 @@ public class Control extends Thread {
     //Use a HashMap to storage the id of the crush server, and unsuccessfully broadcast message in its value.
     public static Map<String, ArrayList<String>> undeliveredBoradcastMsg = new HashMap<>();
 
+    /*
+     * otherServer list is restore the connection of the servers connected to this server
+     * use getOtherServers() method to get the update otherServer
+     */
+    private static LinkedList<Connection> otherServers;
 
 	protected static Control control = null;
 
@@ -73,6 +78,21 @@ public class Control extends Thread {
 		}
 		start();
 	}
+
+	public static LinkedList<Connection> getOtherServers() {
+	    LinkedList<Connection> otherServers = new LinkedList<>();
+        for(Connection con: connections){
+            if(serverMap.values().contains(con.getSocket().getRemoteSocketAddress())){
+                otherServers.push(con);
+            }
+        }
+        log.info(otherServers.size());
+        return otherServers;
+    }
+
+	public static LinkedList<SocketAddress> getServerList() {
+	    return serverList;
+    }
 
 	public boolean initiateConnection(boolean isReconnection){
 		// make a connection to another server if remote hostname is supplied
@@ -228,12 +248,12 @@ public class Control extends Thread {
                     if (serverMap.size() <= 1 && registration.containsKey(username)) {
 						sendLockResult(con, username, secret, false);
 						log.info("Lock denied");
-					} else if (connectedServerCount <= 1 && !registration.containsKey(username)) {
+					} else if (serverMap.size() <= 1 && !registration.containsKey(username)) {
                     	sendLockResult(con, username, secret, true);
                     	registration.put(username, secret);
                     	log.info("Lock allowed");
                     } else {
-                    	log.info(connectedServerCount);
+                    	log.info(serverMap.size());
                         requestServer = con;
                         //List<Connection> otherServers = new ArrayList<>(connections.subList(0,connectedServerCount));
                         LinkedList<Connection> otherServers = new LinkedList<>();
@@ -259,11 +279,11 @@ public class Control extends Thread {
                     username = (String)clientMsg.get("username");
                     secret = (String) clientMsg.get("secret");
                     lockAllowedCount += 1;
-                    if (isRegistering && lockAllowedCount == connectedServerCount) {
+                    if (isRegistering && lockAllowedCount == serverMap.size()) {
                         registerClient.writeMsg(registerSuccess(clientUsername, true));
                         registration.put(username,secret);
                         lockAllowedCount = 0;
-                    } else if (!isRegistering && lockAllowedCount == connectedServerCount - 1){
+                    } else if (!isRegistering && lockAllowedCount == serverMap.size() - 1){
 						sendLockResult(requestServer, username, secret, true);
 						registration.put(username,secret);
 						lockAllowedCount = 0;
@@ -496,7 +516,8 @@ public class Control extends Thread {
             con.writeMsg(InvalidMessageProcessor.invalidInfo("JSON_PARSE_ERROR"));
         }
         catch (NullPointerException e) {
-	        con.writeMsg(InvalidMessageProcessor.invalidInfo("NULL MESSAGE"));
+	        e.printStackTrace();
+//	        con.writeMsg(InvalidMessageProcessor.invalidInfo("NULL MESSAGE"));
         }
         catch (Exception e){
             e.printStackTrace();
@@ -567,9 +588,9 @@ public class Control extends Thread {
 		if (registration.containsKey(username)) {
 			con.writeMsg(registerSuccess(username,false));
             return false;
-		} else if (connectedServerCount > 0) {
-		       sendLockRequest(connections.subList(0, connectedServerCount), username, secret);
-		       log.info("test: " + connections.subList(0,connectedServerCount));
+		} else if (serverMap.size() > 0) {
+		       log.info("**********");
+		       sendLockRequest(getOtherServers(), username, secret);
 		       registerClient = con;
 		       clientUsername = username;
 		       return true;
@@ -625,7 +646,7 @@ public class Control extends Thread {
 //			log.info("Activity message broadcast to client.");
 //		}
 //	}
-public synchronized void broadcastToClient(String activityJSON) {
+    public synchronized void broadcastToClient(String activityJSON) {
 //        for(int i = 0;i<connections.size();i++){
 //            connections.get(i).writeMsg(activityJSON);
 //            log.info("Activity message broadcast to client.");
@@ -802,9 +823,9 @@ public synchronized void broadcastToClient(String activityJSON) {
 		lockResult.put("username", username);
 		lockResult.put("secret", secret);
 		String lockResultJSON = lockResult.toJSONString();
-		if (connectedServerCount > 1) {
-			List<Connection> otherServers = connections.subList(0, connectedServerCount);
-			otherServers.remove(fromCon);
+		if (serverMap.size() > 1) {
+			//List<Connection> otherServers = connections.subList(0, connectedServerCount);
+			getOtherServers().remove(fromCon);
 			broadcast(otherServers, lockResultJSON);
 		}
 		return false;
@@ -956,11 +977,14 @@ public synchronized void broadcastToClient(String activityJSON) {
 			if(serverMap.size() >= 1){
 
 			    try{
+
                     for(Object value:serverMap.values()){
                         log.info(value);
                     }
+
 			        announce();
                     showUndeliveredMsg();
+
                     processActivityToClient();
                 }
                 catch (Exception e){
