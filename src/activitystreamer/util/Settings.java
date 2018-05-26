@@ -18,6 +18,7 @@ public class Settings {
 	private static int activityInterval = 5000; // milliseconds
 	private static String secret = "";
 	private static String username = "anonymous";
+	private static Boolean isRootServer = true;
 
 	private static int crashedPort = 0;
 	private static String crashedHostname = localHostname;
@@ -104,6 +105,14 @@ public class Settings {
 	/*
 	 * some general helper functions
 	 */
+
+	public static Boolean getIsRootServer() {
+	    return isRootServer;
+    }
+
+	public static void setIsRootServer(Boolean isRootServer) {
+	    Settings.isRootServer = isRootServer;
+    }
 	
 	public static String socketAddress(Socket socket){
 		return socket.getInetAddress()+":"+socket.getPort();

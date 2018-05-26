@@ -63,6 +63,7 @@ public class Server {
 		}
 		
 		if(cmd.hasOption("rp")){
+			Settings.setIsRootServer(false);
 			try{
 				int port = Integer.parseInt(cmd.getOptionValue("rp"));
 				Settings.setRemotePort(port);

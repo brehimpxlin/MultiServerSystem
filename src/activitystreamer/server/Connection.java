@@ -108,10 +108,7 @@ public class Connection extends Thread {
 			}
 
 			log.debug("connection closed to "+Settings.socketAddress(socket));
-
-//			String crashServer = Settings.getRemoteHostname()+":"+Settings.getRemotePort();
-//			Control.getInstance().initCrashServer(crashServer);
-
+			
 			/*
 			 * reconnect when connection closed accidentally
 			 */
@@ -141,8 +138,7 @@ public class Connection extends Thread {
 	}
 
     public synchronized void reconnect() {
-        if (this == Control.getInstance().getConnections().get(0)
-                && Settings.getLocalPort() != Settings.getRemotePort()) {
+        if (!Settings.getIsRootServer() && Settings.getLocalPort() != Settings.getRemotePort()) {
             log.info("tring to reconnect to the crashed server ...");
             Timer timer = new Timer();
             timer.schedule(new TimerTask() {
