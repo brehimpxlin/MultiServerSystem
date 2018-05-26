@@ -22,7 +22,6 @@ public class Control extends Thread {
 	private static Map registration = new HashMap();
     //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
 	private static List<HashMap<String, Integer>> serverLoads = new LinkedList<>();
-	private static LinkedList<SocketAddress> serverList = new LinkedList<>();
     private static LinkedList<SocketAddress> clientList = new LinkedList<>();
     private static HashMap serverMap = new HashMap();
     private static String serverID = Settings.getLocalHostname()+":"+Settings.getLocalPort();
@@ -37,6 +36,7 @@ public class Control extends Thread {
 	private static String clientUsername;
 	private static boolean isRegistering = false;
 	private static Connection requestServer;
+	private static int count=0;
 //    private static boolean existTimeStamp = false;
 //    private static long startTime;
     private static List<ActivityMsg> al = new ArrayList<ActivityMsg>();
@@ -124,13 +124,6 @@ public class Control extends Thread {
             }
         }
     }
-//
-//    private void confirmCon(Connection con){
-//	    JSONObject confirmMsg = new JSONObject();
-//	    confirmMsg.put("command", "CONFIRM_CONNECTION");
-//
-//    }
-    
 
     public boolean checkCon(Connection con, String type){
         switch (type){
@@ -331,7 +324,7 @@ public class Control extends Thread {
                                 tempOtherServers.push(cons);
                             }
                         }
-                        serverList.remove(con);
+                        tempOtherServers.remove(con);
                         broadcast(tempOtherServers, actBroadcast.toJSONString());
 
 //                        broadcastToServer(con,msg);
@@ -620,7 +613,7 @@ public class Control extends Thread {
             al.clear();
             log.info("Activity ArrayList had been cleared.");
         }else{
-            log.info("No activity exist in ArrayList.");
+//            log.info("No activity exist in ArrayList.");
         }
     }
 
@@ -908,6 +901,7 @@ public class Control extends Thread {
 			// do something with 5 second intervals in between
 			try {
 				Thread.sleep(Settings.getActivityInterval());
+
 			} catch (InterruptedException e) {
 				log.info("received an interrupt, system is shutting down");
 				break;
@@ -922,10 +916,13 @@ public class Control extends Thread {
 			if(serverMap.size() >= 1){
 
 			    try{
-
-			        announce();
-
                     processActivityToClient();
+                    this.count++;
+                    if(this.count == 5){
+                        announce();
+                        this.count = 0;
+                    }
+
                 }
                 catch (Exception e){
 			        log.error("A server has quited accidentally. System failed.");
