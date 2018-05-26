@@ -120,6 +120,7 @@ public class Connection extends Thread {
 			/*
 			 * reconnect when connection closed accidentally
 			 */
+			this.closeCon();
 			reconnect();
 			Control.getInstance().connectionClosed(this);
 			in.close();
