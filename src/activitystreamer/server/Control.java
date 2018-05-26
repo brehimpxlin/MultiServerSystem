@@ -43,8 +43,8 @@ public class Control extends Thread {
     private static List<ActivityMsg> al = new ArrayList<ActivityMsg>();
     //Use a HashMap to storage the id of the crush server, and unsuccessfully broadcast message in its value.
     private static Map<String, ArrayList<String>> undeliveredBoradcastMsg = new HashMap<>();
-    private static LinkedList<ActivityMsg> boradcastActivity = new LinkedList<>();
-    private static List<ActivityMsg> messageToClient = new ArrayList<ActivityMsg>();
+    private static List<ActivityMsg> boradcastActivity = new LinkedList<>();
+    private static List<ActivityMsg> messageToClient = new LinkedList<>();
     public static List<String> timeoutServers = new LinkedList<>();
 
     /**

@@ -117,7 +117,7 @@ public class Connection extends Thread {
 
 		} catch (IOException e) {
 			log.error("connection "+Settings.socketAddress(socket)+" closed with exception: "+e);
-			if(e.toString().contains("Operation timed out")) {
+			if(e.toString().contains("time")) {
 				HashMap smap = Control.getInstance().getServerMap();
 				String sid = null;
 				for (Object server : smap.keySet()) {
