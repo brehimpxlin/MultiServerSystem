@@ -94,7 +94,8 @@ public class Control extends Thread {
     }
 
 	public static LinkedList<SocketAddress> getServerList() {
-	    return (LinkedList<SocketAddress>) serverMap.values();
+
+	    return new LinkedList<SocketAddress>(serverMap.values()) ;
     }
 
 	public boolean initiateConnection(boolean isReconnection){
