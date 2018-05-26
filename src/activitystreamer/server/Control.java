@@ -44,6 +44,7 @@ public class Control extends Thread {
     private static Map<String, ArrayList<String>> undeliveredBoradcastMsg = new HashMap<>();
     private static LinkedList<ActivityMsg> boradcastActivity = new LinkedList<>();
     private static List<ActivityMsg> messageToClient = new ArrayList<ActivityMsg>();
+    public static List<String> timeoutServers = new LinkedList<>();
 
     /**
      * otherServer list is restore the connection of the servers connected to this server
@@ -59,6 +60,10 @@ public class Control extends Thread {
 		}
 		return control;
 	}
+
+	public HashMap getServerMap(){
+	    return this.serverMap;
+    }
 
 	public Control() {
 		// initialize the connections array
@@ -227,7 +232,13 @@ public class Control extends Thread {
 
                         con.setSender((String)clientMsg.get("id"));
                         con.setReceiver(serverID);
-                        reBoradcastMsgToCrashServer(con,(String)clientMsg.get("id"));
+                        if (undeliveredBoradcastMsg.containsKey(serverID)){
+                            reBoradcastMsgToCrashServer(con,(String)clientMsg.get("id"));
+                        }else if(timeoutServers.contains((String)clientMsg.get("id"))){
+                            reBoradcastMsgToTimeoutServer(con);
+                        }
+
+
 					}else{
 					    con.closeCon();
 					    connectionClosed(con);
@@ -727,13 +738,40 @@ public class Control extends Thread {
                     for (int i = 0; i < undeliveredBoradcastMsg.get(targetServer).size(); i++) {
                         currentCon.writeMsg(undeliveredBoradcastMsg.get(targetServer).get(i));
                     }
+                    undeliveredBoradcastMsg.remove(targetServer);
                 }else{
                     log.info("No msg in buffer.");
                 }
             }
-            undeliveredBoradcastMsg.remove(targetServer);
+//            undeliveredBoradcastMsg.remove(targetServer);
         }
     }
+
+    public synchronized void reBoradcastMsgToTimeoutServer(Connection currentCon) {
+        if (boradcastActivity.size() > 0) {
+            for (int i = 0; i < boradcastActivity.size(); i++) {
+                JSONObject temp = new JSONObject();
+                ActivityMsg tempMsg = boradcastActivity.get(i);
+
+//                JSONObject msgFromClient = (JSONObject) parser2.parse(msg);
+//                msgFromClient.put("timestamp",System.currentTimeMillis());
+//                String msgString = msgFromClient.toString();
+//                actBroadcast.put("id",Settings.nextSecret());
+//                actBroadcast.put("command","ACTIVITY_BROADCAST");
+//                actBroadcast.put("activity",msgString);
+
+                temp.put("id",tempMsg.getId());
+                temp.put("command",tempMsg.getId());
+                temp.put("activity",tempMsg.getId());
+                temp.put("timestamp",tempMsg.getId());
+
+//                temp.put("id",tempMsg.getId());
+                currentCon.writeMsg(temp.toJSONString());
+
+            }
+        }
+    }
+
 
 
 
@@ -931,8 +969,8 @@ public class Control extends Thread {
 			        announce();
                     showUndeliveredMsg();
                     processActivityToClient();
-                    showMsgToClient();
-                    showBoradcastMsg();
+//                    showMsgToClient();
+//                    showBoradcastMsg();
                 }
                 catch (Exception e){
 			        log.error("A server has quited accidentally. System failed.");
