@@ -3,6 +3,7 @@ package activitystreamer.util;
 import java.util.Comparator;
 
 public class ActivityMsg implements Comparable<ActivityMsg> {
+    private String id;
     private String activity;
     private String command;
     private String username;
@@ -34,11 +35,14 @@ public class ActivityMsg implements Comparable<ActivityMsg> {
     public String getUsername() {
         return username;
     }
+    public String getId() { return id; }
 
+    public void setId(String id) { this.id = id; }
     public void setUsername(String username) {
         this.username = username;
     }
-    public ActivityMsg(String activity,String command,String username,long timestamp){
+    public ActivityMsg(String id,String activity,String command,String username,long timestamp){
+        this.setId(id);
         this.setUsername(username);
         this.setActivity(activity);
         this.setCommand(command);
