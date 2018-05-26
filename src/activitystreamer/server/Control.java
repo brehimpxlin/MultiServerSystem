@@ -376,13 +376,16 @@ public class Control extends Thread {
 //					JSONObject  activityBroadcast = new JSONObject();
                     JSONParser parser3 = new JSONParser();
                     JSONObject msgFromServer = (JSONObject) parser3.parse(msg);
+                    log.info("ACTIVITY_BROADCAST_MSG "+msg);
                     String msgString = (String)msgFromServer.get("activity");
                     JSONObject actMsg = (JSONObject) parser3.parse(msgString);
+                    log.info("ACTIVITY_BROADCAST_MSG "+msg);
                     String msg_activity = (String)actMsg.get("activity");
                     String msg_command = (String)actMsg.get("command");
                     String msg_username = (String)actMsg.get("username");
                     long msg_timestamp = (long)actMsg.get("timestamp");
-                    String msg_id = (String)actMsg.get("id");
+                    String msg_id = (String)msgFromServer.get("id");
+                    log.info("ACTIVITY_BROADCAST "+msg_id);
                     ActivityMsg temp = new ActivityMsg(msg_id,msg_activity,msg_command,msg_username,msg_timestamp);
                     al.add(temp);
 //                    broadcast()
@@ -618,11 +621,13 @@ public class Control extends Thread {
                     String msg_act = al.get(j).getActivity();
                     String msg_cmd = al.get(j).getCommand();
                     String msg_uname = al.get(j).getUsername();
+                    String msg_id = al.get(j).getId();
 //                long msg_time = al.get(j).getTimestamp();
                     JSONObject msgToClient = new JSONObject();
                     msgToClient.put("activity", msg_act);
                     msgToClient.put("command", msg_cmd);
                     msgToClient.put("username", msg_uname);
+                    msgToClient.put("id", msg_id);
 //                msgToClient.put("timestamp",msg_time);
                     if(messageToClient.size() == 0 || !messageToClient.contains(al.get(j))) {
                         tempClientList.get(i).writeMsg(msgToClient.toString());
@@ -711,7 +716,7 @@ public class Control extends Thread {
     public synchronized void showBoradcastMsg(){
         if(boradcastActivity.size()>0){
             for(int i=0;i<boradcastActivity.size();i++){
-                log.info("In boradcastActivity: "+boradcastActivity.get(i).getActivity());
+                log.info("In boradcastActivity: "+boradcastActivity.get(i).getId());
             }
         }else{
             log.info("No msg in boradcastActivity.");
@@ -721,7 +726,8 @@ public class Control extends Thread {
     public synchronized void showMsgToClient(){
         if(messageToClient.size()>0){
             for(int i=0;i<messageToClient.size();i++){
-                log.info("In messageToClient: "+messageToClient.get(i).getActivity());
+                log.info("In messageToClient: "+messageToClient.get(i).getId());
+//                .getActivity());
             }
         }else{
             log.info("No msg in messageToClient.");
@@ -969,8 +975,8 @@ public class Control extends Thread {
 			        announce();
                     showUndeliveredMsg();
                     processActivityToClient();
-//                    showMsgToClient();
-//                    showBoradcastMsg();
+                    showMsgToClient();
+                    showBoradcastMsg();
                 }
                 catch (Exception e){
 			        log.error("A server has quited accidentally. System failed.");
