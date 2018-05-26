@@ -43,7 +43,7 @@ public class Control extends Thread {
     //Use a HashMap to storage the id of the crush server, and unsuccessfully broadcast message in its value.
     public static Map<String, ArrayList<String>> undeliveredBoradcastMsg = new HashMap<>();
 
-    /*
+    /**
      * otherServer list is restore the connection of the servers connected to this server
      * use getOtherServers() method to get the update otherServer
      */
@@ -79,6 +79,9 @@ public class Control extends Thread {
 		start();
 	}
 
+	/**
+	 * getOtherServers() return the connected server connection list
+	 */
 	public static LinkedList<Connection> getOtherServers() {
 	    LinkedList<Connection> otherServers = new LinkedList<>();
         for(Connection con: connections){
@@ -91,7 +94,7 @@ public class Control extends Thread {
     }
 
 	public static LinkedList<SocketAddress> getServerList() {
-	    return serverList;
+	    return (LinkedList<SocketAddress>) serverMap.values();
     }
 
 	public boolean initiateConnection(boolean isReconnection){
@@ -526,7 +529,7 @@ public class Control extends Thread {
 		return true;
 	}
 
-	/*
+	/**
 	 * Compare the input username and secret with the ones in (HashMap)registration.
 	 * Return a JSONObject.
 	 */
@@ -552,7 +555,8 @@ public class Control extends Thread {
         }
 	    return loginResult;
     }
-    /*
+
+    /**
      * Check load balance and redirect users if there is a need.
      * Iterate the serverLoads to find if there is a server with a load which is at least 2 clients less than the current one.
      * If there was, send a message to the client which tries to connect, to redirect it to the server with a smaller load found.
@@ -576,7 +580,7 @@ public class Control extends Thread {
     }
 
 
-	/*
+	/**
      * REGISTER
      * - first check the local storage if the incoming username exits.
      * - return `REGISTER_FAIL` if it does, Else check the other servers.
@@ -775,7 +779,7 @@ public class Control extends Thread {
         }
     }
 
-	/*
+	/**
 	 * Return REGISTER_SUCCESS or REGISTER_FAIL
 	 */
 	public String registerSuccess(String userName, boolean result) {
@@ -831,7 +835,7 @@ public class Control extends Thread {
 		return false;
 	}
 
-	/*
+	/**
 	 * Broadcast message to certain connections
 	 */
 	public boolean broadcast(List<Connection> cons, String msg) {
@@ -911,7 +915,7 @@ public class Control extends Thread {
         }
     }
 
-	/*
+	/**
 	 * The connection has been closed by the other party.
 	 */
 	public synchronized void connectionClosed(Connection con){
@@ -919,7 +923,7 @@ public class Control extends Thread {
 		    connections.remove(con);
 	}
 
-	/*
+	/**
 	 * A new incoming connection has been established, and a reference is returned to it
 	 */
 	public synchronized Connection incomingConnection(Socket s) throws IOException{
@@ -929,7 +933,7 @@ public class Control extends Thread {
 		return c;
 	}
 
-	/*
+	/**
 	 * A new outgoing connection has been established, and a reference is returned to it
 	 */
 	public synchronized Connection outgoingConnection(Socket s) throws IOException{
@@ -982,9 +986,9 @@ public class Control extends Thread {
                         log.info(value);
                     }
 
+
 			        announce();
                     showUndeliveredMsg();
-
                     processActivityToClient();
                 }
                 catch (Exception e){
