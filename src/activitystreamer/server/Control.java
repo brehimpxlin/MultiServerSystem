@@ -20,38 +20,36 @@ public class Control extends Thread {
 	private static LinkedList<Connection> templist;
 	//Registration is a HashMap containing the username and secret of registered clients.
 	private static Map registration = new HashMap();
-    //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
+        //ServerLoads is a list of HashMaps containing the serverID, hostname, port and load of every other server in this system.
 	private static List<HashMap<String, Integer>> serverLoads = new LinkedList<>();
 
-    private static LinkedList<SocketAddress> clientList = new LinkedList<>();
-    private static HashMap serverMap = new HashMap();
-    private static String serverID = Settings.getLocalHostname()+":"+Settings.getLocalPort();
-    public static String getServerID() {
+        private static LinkedList<SocketAddress> clientList = new LinkedList<>();
+        private static HashMap serverMap = new HashMap();
+        private static String serverID = Settings.getLocalHostname()+":"+Settings.getLocalPort();
+        public static String getServerID() {
         return serverID;
     }
 	private static boolean term=false;
 	private static Listener listener;
-    private static int connectedServerCount = 0;
+        private static int connectedServerCount = 0;
 	private static int lockAllowedCount = 0;
 	private static Connection registerClient;
 	private static String clientUsername;
 	private static boolean isRegistering = false;
 	private static Connection requestServer;
 	private static int count=0;
-//    private static boolean existTimeStamp = false;
-//    private static long startTime;
-    private static List<ActivityMsg> al = new ArrayList<ActivityMsg>();
-    //Use a HashMap to storage the id of the crush server, and unsuccessfully broadcast message in its value.
-    private static Map<String, ArrayList<String>> undeliveredBoradcastMsg = new HashMap<>();
-    private static List<ActivityMsg> boradcastActivity = new LinkedList<>();
-    private static List<ActivityMsg> messageToClient = new LinkedList<>();
-    public static List<String> timeoutServers = new LinkedList<>();
+        private static List<ActivityMsg> al = new ArrayList<ActivityMsg>();
+        //Use a HashMap to storage the id of the crush server, and unsuccessfully broadcast message in its value.
+        private static Map<String, ArrayList<String>> undeliveredBoradcastMsg = new HashMap<>();
+        private static List<ActivityMsg> boradcastActivity = new LinkedList<>();
+        private static List<ActivityMsg> messageToClient = new LinkedList<>();
+        public static List<String> timeoutServers = new LinkedList<>();
 
     /**
      * otherServer list is restore the connection of the servers connected to this server
      * use getOtherServers() method to get the update otherServer
      */
-    private static LinkedList<Connection> otherServers;
+        private static LinkedList<Connection> otherServers;
 
 	protected static Control control = null;
 
